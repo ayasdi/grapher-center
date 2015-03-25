@@ -1,0 +1,15 @@
+{
+  "name": "grapher-center",
+  "repository": "ayasdi/grapher-center",
+  "description": "Center module for Grapher",
+  "version": "0.0.1",
+  "license": "Apache 2.0",
+  "scripts": {
+    "grapher.js": "duo build/build.js > build/grapher.js --no-cache",
+    "center-min.js": "uglifyjs center.js -o center-min.js"
+  },
+  "devDependencies": {
+    "duo": "~0.8.10",
+    "uglify-js": "~2.4.16"
+  }
+}
