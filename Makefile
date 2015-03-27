@@ -1,6 +1,6 @@
-all: center-min.js
+all: min.js
 
-center-min.js:
+min.js:
 	@npm run center-min.js
 
 test:
