@@ -84,7 +84,7 @@
 })({
 1: [function(require, module, exports) {
 Grapher = require('ayasdi/grapher@87d4cf2');
-require('../center.js');
+require('../center.js')(Grapher);
 
 }, {"ayasdi/grapher@87d4cf2":2,"../center.js":3}],
 2: [function(require, module, exports) {
@@ -1413,92 +1413,95 @@ function isNaN (o) {
 
 }, {}],
 3: [function(require, module, exports) {
-;(function (g) {
+;(function () {
+  var center = function (g) {
 
-/**
-  * grapher.center
-  * ------------------
-  * 
-  * Center the whole network or provided nodeIds in the view.
-  */
-  g.prototype.center = function (nodeIds) {
-    var x = 0,
-        y = 0,
-        scale = 1,
-        allNodes = this.data() ? this.data().nodes : null,
-        nodes = [];
-    if (nodeIds) for (i = 0; i < nodeIds.length; i++) { nodes.push(allNodes[nodeIds[i]]); }
-    else nodes = allNodes;
+  /**
+    * grapher.center
+    * ------------------
+    * 
+    * Center the whole network or provided nodeIds in the view.
+    */
+    g.prototype.center = function (nodeIds) {
+      var x = 0,
+          y = 0,
+          scale = 1,
+          allNodes = this.data() ? this.data().nodes : null,
+          nodes = [];
+      if (nodeIds) for (i = 0; i < nodeIds.length; i++) { nodes.push(allNodes[nodeIds[i]]); }
+      else nodes = allNodes;
 
-    var numNodes = nodes ? nodes.length : 0;
+      var numNodes = nodes ? nodes.length : 0;
 
-    if (numNodes) { // get initial transform
-      var minX = Infinity, maxX = -Infinity,
-          minY = Infinity, maxY = -Infinity,
-          width = this.props.width,
-          height = this.props.height,
-          pad = 1.1,
-          i;
+      if (numNodes) { // get initial transform
+        var minX = Infinity, maxX = -Infinity,
+            minY = Infinity, maxY = -Infinity,
+            width = this.props.width,
+            height = this.props.height,
+            pad = 1.1,
+            i;
 
-      for (i = 0; i < numNodes; i++) {
-        if (nodes[i].x < minX) minX = nodes[i].x;
-        if (nodes[i].x > maxX) maxX = nodes[i].x;
-        if (nodes[i].y < minY) minY = nodes[i].y;
-        if (nodes[i].y > maxY) maxY = nodes[i].y;
+        for (i = 0; i < numNodes; i++) {
+          if (nodes[i].x < minX) minX = nodes[i].x;
+          if (nodes[i].x > maxX) maxX = nodes[i].x;
+          if (nodes[i].y < minY) minY = nodes[i].y;
+          if (nodes[i].y > maxY) maxY = nodes[i].y;
+        }
+        
+        var dX = maxX - minX,
+            dY = maxY - minY;
+
+        scale = Math.min(width / dX, height / dY, 2) / pad;
+        x = (width - dX * scale) / 2 - minX * scale;
+        y = (height - dY * scale) / 2 - minY * scale;
       }
-      
-      var dX = maxX - minX,
-          dY = maxY - minY;
 
-      scale = Math.min(width / dX, height / dY, 2) / pad;
-      x = (width - dX * scale) / 2 - minX * scale;
-      y = (height - dY * scale) / 2 - minY * scale;
-    }
+      return this.scale(scale).translate([x, y]);
+    };
 
-    return this.scale(scale).translate([x, y]);
-  };
+  /**
+    * grapher.centerToPoint
+    * ------------------
+    * 
+    * Center the network to the point with x and y coordinates
+    */
+    g.prototype.centerToPoint = function (point) {
+      var width = this.props.width,
+          height = this.props.height,
+          x = this.translate()[0] + width / 2 - point.x,
+          y = this.translate()[1] + height / 2 - point.y;
 
-/**
-  * grapher.centerToPoint
-  * ------------------
-  * 
-  * Center the network to the point with x and y coordinates
-  */
-  g.prototype.centerToPoint = function (point) {
+      return this.translate([x, y]);
+    };
 
-    var width = this.props.width,
-        height = this.props.height,
-        x = this.translate()[0] + width / 2 - point.x,
-        y = this.translate()[1] + height / 2 - point.y;
+  /**
+    * Extend data to call this.center,
+    * scale and translate to track when the user modifies the transform.
+    */
+    var data = g.prototype.data,
+        scale = g.prototype.scale,
+        translate = g.prototype.translate;
 
-    return this.translate([x, y]);
-  };
+    g.prototype._hasModifiedTransform = false;
+    g.prototype.data = function () {
+      var res = data.apply(this, arguments);
+      if (res === this && !this._hasModifiedTransform) this.center();
+      return res;
+    };
+    g.prototype.scale = function () {
+      var res = scale.apply(this, arguments);
+      if (res === this) this._hasModifiedTransform = true;
+      return res;
+    };
+    g.prototype.translate = function () {
+      var res = translate.apply(this, arguments);
+      if (res === this) this._hasModifiedTransform = true;
+      return res;
+    };
+  }
 
-/**
-  * Extend data to call this.center,
-  * scale and translate to track when the user modifies the transform.
-  */
-  var data = g.prototype.data,
-      scale = g.prototype.scale,
-      translate = g.prototype.translate;
-
-  g.prototype._hasModifiedTransform = false;
-  g.prototype.data = function () {
-    var res = data.apply(this, arguments);
-    if (res === this && !this._hasModifiedTransform) this.center();
-    return res;
-  };
-  g.prototype.scale = function () {
-    var res = scale.apply(this, arguments);
-    if (res === this) this._hasModifiedTransform = true;
-    return res;
-  };
-  g.prototype.translate = function () {
-    var res = translate.apply(this, arguments);
-    if (res === this) this._hasModifiedTransform = true;
-    return res;
-  };
-
-})(Grapher);
+  if (typeof module !== 'undefined' && module.exports) module.exports = center;
+  else center(Grapher);
+})();
 
 }, {}]}, {}, {"1":""})
