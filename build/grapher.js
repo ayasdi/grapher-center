@@ -83,35 +83,16 @@
    return require;
 })({
 1: [function(require, module, exports) {
-Grapher = require('ayasdi/grapher@v1');
+Grapher = require('ayasdi/grapher@87d4cf2');
 require('../center.js');
 
-}, {"ayasdi/grapher@v1":2,"../center.js":3}],
+}, {"ayasdi/grapher@87d4cf2":2,"../center.js":3}],
 2: [function(require, module, exports) {
-;(function () {
-  Grapher = require('./modules/grapher.js');
-
-  if (module && module.exports) module.exports = Grapher;
-})();
-
-}, {"./modules/grapher.js":4}],
-4: [function(require, module, exports) {
 // Ayasdi Inc. Copyright 2014
 // Grapher.js may be freely distributed under the Apache 2.0 license
 
 ;(function () {
-/**
-  * Helpers and Renderers
-  * =====================
-  * Load helpers and renderers.
-  */
-  var WebGLRenderer = require('./renderers/gl/renderer.js'),
-      CanvasRenderer = require('./renderers/canvas/renderer.js'),
-      Color = require('./helpers/color.js'),
-      Link = require('./helpers/link.js'),
-      Node = require('./helpers/node.js'),
-      u = require('./helpers/utilities.js');
-
+  
 /**
   * Grapher
   * =======
@@ -121,6 +102,18 @@ require('../center.js');
     this.initialize.apply(this, arguments);
     return this;
   }
+
+/**
+  * Helpers and Renderers
+  * =====================
+  * Load helpers and renderers.
+  */
+  var WebGLRenderer = Grapher.WebGLRenderer = require('./renderers/gl/renderer.js'),
+      CanvasRenderer = Grapher.CanvasRenderer = require('./renderers/canvas/renderer.js'),
+      Color = Grapher.Color = require('./helpers/color.js'),
+      Link = Grapher.Link = require('./helpers/link.js'),
+      Node = Grapher.Node = require('./helpers/node.js'),
+      u = Grapher.utils = require('./helpers/utilities.js');
 
   Grapher.prototype = {};
 
@@ -134,6 +127,8 @@ require('../center.js');
     *
     */
   Grapher.prototype.initialize = function (o) {
+    if (!o) o = {};
+    
     // Extend default properties with options
     this.props = u.extend({
       color: 0x222222,
@@ -160,8 +155,6 @@ require('../center.js');
 
     // Initialize sizes
     this.resize(this.props.width, this.props.height);
-
-    this.hasModifiedTransform = false;
 
     // Sprite array
     this.links = [];
@@ -235,21 +228,6 @@ require('../center.js');
   };
 
   /**
-    * grapher.palette
-    * ------------------
-    * 
-    * Set a grapher to use a pre-defined palette. Palettes can be pre-defined
-    * with the static function Grapher.setPalette.
-    */
-  Grapher.prototype.palette = function (name) {
-    if (u.isUndefined(name)) return this.props.palette;
-
-    this.props.palette = Grapher.getPalette(name);
-    this.update();
-    return this;
-  };
-
-  /**
     * grapher.data
     * ------------------
     * 
@@ -268,7 +246,6 @@ require('../center.js');
     this.enter();
     this.update();
 
-    if (!this.hasModifiedTransform) this.center();
     return this;
   };
 
@@ -281,14 +258,13 @@ require('../center.js');
     */
   Grapher.prototype.enter = function () {
     var data = this.data();
-
     if (this.links.length < data.links.length) {
-      var links = data.links.slice(this.links.length, data.links.length - this.links.length);
+      var links = data.links.slice(this.links.length, data.links.length);
       u.eachPop(links, u.bind(function () { this.links.push(new Link()); }, this));
     }
 
     if (this.nodes.length < data.nodes.length) {
-      var nodes = data.nodes.slice(this.nodes.length, data.nodes.length - this.nodes.length);
+      var nodes = data.nodes.slice(this.nodes.length, data.nodes.length);
       u.eachPop(nodes, u.bind(function () { this.nodes.push(new Node()); }, this));
     }
 
@@ -453,45 +429,6 @@ require('../center.js');
   };
 
   /**
-    * grapher.center
-    * ------------------
-    * 
-    * Center the network in the view. This function modifies the scale and translate.
-    */
-  Grapher.prototype.center = function () {
-    var x = 0,
-        y = 0,
-        scale = 1,
-        nodes = this.data() ? this.data().nodes : null,
-        numNodes = nodes ? nodes.length : 0;
-
-    if (numNodes) { // get initial transform
-      var minX = Infinity, maxX = -Infinity,
-          minY = Infinity, maxY = -Infinity,
-          width = this.canvas.width / this.props.resolution,
-          height = this.canvas.height / this.props.resolution,
-          pad = 1.1,
-          i;
-
-      for (i = 0; i < numNodes; i++) {
-        if (nodes[i].x < minX) minX = nodes[i].x;
-        if (nodes[i].x > maxX) maxX = nodes[i].x;
-        if (nodes[i].y < minY) minY = nodes[i].y;
-        if (nodes[i].y > maxY) maxY = nodes[i].y;
-      }
-      
-      var dX = maxX - minX,
-          dY = maxY - minY;
-
-      scale = Math.min(width / dX, height / dY, 2) / pad;
-      x = (width - dX * scale) / 2 - minX * scale;
-      y = (height - dY * scale) / 2 - minY * scale;
-    }
-
-    return this.scale(scale).translate([x, y]);
-  };
-
-  /**
     * grapher.transform
     * ------------------
     * 
@@ -518,7 +455,6 @@ require('../center.js');
     if (u.isUndefined(scale)) return this.props.scale;
     if (u.isNumber(scale)) this.props.scale = scale;
     this.updateTransform = true;
-    this.hasModifiedTransform = true;
     return this;
   };
 
@@ -533,7 +469,6 @@ require('../center.js');
     if (u.isUndefined(translate)) return this.props.translate;
     if (u.isArray(translate)) this.props.translate = translate;
     this.updateTransform = true;
-    this.hasModifiedTransform = true;
     return this;
   };
 
@@ -709,11 +644,7 @@ require('../center.js');
     * integer.
     */
   Grapher.prototype._findColor = function (c) {
-    var color = NaN,
-        palette = this.palette();
-
-    if (palette && palette[c]) color = palette[c];
-    else color = Color.parse(c);
+    var color = Color.parse(c);
 
     // if color is still not set, use the default
     if (u.isNaN(color)) color = this.color();
@@ -767,48 +698,12 @@ require('../center.js');
   */
   var NODES = Grapher.NODES = 'nodes';
   var LINKS = Grapher.LINKS = 'links';
-  Grapher.palettes = {}; // Store palettes and textures staticly.
-
-/**
-  * Grapher Static Methods
-  * ======================
-  */
-
-  /**
-    * Grapher.getPalette
-    * -------------------
-    * 
-    * Get a palette that has been defined.
-    *
-    */
-  Grapher.getPalette = function (name) { return this.palettes[name]; };
-
-  /**
-    * Grapher.setPalette
-    * -------------------
-    * 
-    * Define a palette with a name and an array of color swatches.
-    *
-    */
-  Grapher.setPalette = function (name, swatches) {
-    var palette = this.palettes[name] = {};
-    swatches = u.map(swatches, Color.parse);
-
-    u.each(swatches, function (swatch, i) {
-      palette[i] = swatch;
-      for (var j = 0; j < i; j++) { // Interpolate 'in-between' link colors 50% between node colors.
-        var color = Color.interpolate(swatches[j], swatch, 0.5);
-        palette[j + '-' + i] = color;
-      }
-    }, this);
-    return this;
-  };
 
   if (module && module.exports) module.exports = Grapher;
 })();
 
-}, {"./renderers/gl/renderer.js":5,"./renderers/canvas/renderer.js":6,"./helpers/color.js":7,"./helpers/link.js":8,"./helpers/node.js":9,"./helpers/utilities.js":10}],
-5: [function(require, module, exports) {
+}, {"./renderers/gl/renderer.js":4,"./renderers/canvas/renderer.js":5,"./helpers/color.js":6,"./helpers/link.js":7,"./helpers/node.js":8,"./helpers/utilities.js":9}],
+4: [function(require, module, exports) {
 ;(function () {
   var LinkVertexShaderSource = require('./shaders/link.vert'),
       LinkFragmentShaderSource = require('./shaders/link.frag'),
@@ -983,20 +878,20 @@ require('../center.js');
   if (module && module.exports) module.exports = WebGLRenderer;
 })();
 
-}, {"./shaders/link.vert":11,"./shaders/link.frag":12,"./shaders/node.vert":13,"./shaders/node.frag":14,"../renderer.js":15}],
-11: [function(require, module, exports) {
+}, {"./shaders/link.vert":10,"./shaders/link.frag":11,"./shaders/node.vert":12,"./shaders/node.frag":13,"../renderer.js":14}],
+10: [function(require, module, exports) {
 module.exports = 'uniform vec2 u_resolution;\nattribute vec2 a_position;\nattribute float a_color;\nvarying vec4 color;\nvarying vec2 position;\nvarying vec2 resolution;\nvoid main() {\n  vec2 clipspace = a_position / u_resolution * 2.0 - 1.0;\n  gl_Position = vec4(clipspace * vec2(1, -1), 0, 1);\n  float c = a_color;\n  color.b = mod(c, 256.0); c = floor(c / 256.0);\n  color.g = mod(c, 256.0); c = floor(c / 256.0);\n  color.r = mod(c, 256.0); c = floor(c / 256.0); color /= 255.0;\n  color.a = 1.0;\n}\n';
 }, {}],
-12: [function(require, module, exports) {
+11: [function(require, module, exports) {
 module.exports = 'precision mediump float;\nvarying vec4 color;\nvoid main() {\n  gl_FragColor = color;\n}\n';
 }, {}],
-13: [function(require, module, exports) {
+12: [function(require, module, exports) {
 module.exports = 'uniform vec2 u_resolution;\nattribute vec2 a_position;\nattribute float a_color;\nattribute vec2 a_center;\nattribute float a_radius;\nvarying vec4 color;\nvarying vec2 center;\nvarying vec2 resolution;\nvarying float radius;\nvoid main() {\n  vec2 clipspace = a_position / u_resolution * 2.0 - 1.0;\n  gl_Position = vec4(clipspace * vec2(1, -1), 0, 1);\n  float c = a_color;\n  color.b = mod(c, 256.0); c = floor(c / 256.0);\n  color.g = mod(c, 256.0); c = floor(c / 256.0);\n  color.r = mod(c, 256.0); c = floor(c / 256.0); color /= 255.0;\n  color.a = 1.0;\n  radius = a_radius;\n  center = a_center;\n  resolution = u_resolution;\n}\n';
 }, {}],
-14: [function(require, module, exports) {
+13: [function(require, module, exports) {
 module.exports = 'precision mediump float;\nvarying vec4 color;\nvarying vec2 center;\nvarying vec2 resolution;\nvarying float radius;\nvoid main() {\n  vec4 color0 = vec4(0.0, 0.0, 0.0, 0.0);\n  float x = gl_FragCoord.x;\n  float y = resolution[1] - gl_FragCoord.y;\n  float dx = center[0] - x;\n  float dy = center[1] - y;\n  float distance = sqrt(dx*dx + dy*dy);\n  if ( distance < radius )\n    gl_FragColor = color;\n  else \n    gl_FragColor = color0;\n}\n';
 }, {}],
-15: [function(require, module, exports) {
+14: [function(require, module, exports) {
 ;(function () {
 
   var Renderer = function () {
@@ -1085,7 +980,7 @@ module.exports = 'precision mediump float;\nvarying vec4 color;\nvarying vec2 ce
 })();
 
 }, {}],
-6: [function(require, module, exports) {
+5: [function(require, module, exports) {
 ;(function () {
 
   var Renderer = require('../renderer.js');
@@ -1140,8 +1035,8 @@ module.exports = 'precision mediump float;\nvarying vec4 color;\nvarying vec2 ce
   if (module && module.exports) module.exports = CanvasRenderer;
 })();
 
-}, {"../renderer.js":15,"../../helpers/color.js":7}],
-7: [function(require, module, exports) {
+}, {"../renderer.js":14,"../../helpers/color.js":6}],
+6: [function(require, module, exports) {
 // Ayasdi Inc. Copyright 2014
 // Color.js may be freely distributed under the Apache 2.0 license
 
@@ -1196,7 +1091,7 @@ function toRgb (intColor) {
   return 'rgb(' + r + ', ' + g + ', ' + b + ')';
 };
 }, {}],
-8: [function(require, module, exports) {
+7: [function(require, module, exports) {
 ;(function () {
   function Link () {
     this.x1 = 0;
@@ -1220,7 +1115,7 @@ function toRgb (intColor) {
 })();
 
 }, {}],
-9: [function(require, module, exports) {
+8: [function(require, module, exports) {
 ;(function () {
   function Node () {
     this.x = 0;
@@ -1242,7 +1137,7 @@ function toRgb (intColor) {
 })();
 
 }, {}],
-10: [function(require, module, exports) {
+9: [function(require, module, exports) {
 /**
  * Utilities
  * =========
