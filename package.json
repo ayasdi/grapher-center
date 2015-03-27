@@ -5,7 +5,7 @@
   "version": "0.0.1",
   "license": "Apache 2.0",
   "scripts": {
-    "grapher.js": "duo build/build.js > build/grapher.js --no-cache",
+    "grapher.js": "duo build/build.js > build/grapher.js",
     "center-min.js": "uglifyjs center.js -o center-min.js"
   },
   "devDependencies": {
