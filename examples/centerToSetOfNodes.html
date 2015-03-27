@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Center</title>
+    <title>Center to a set of nodes</title>
   </head>
   <body>
     <style type="text/css">
@@ -28,11 +28,21 @@
           numLinks = 30,
           i;
 
-      for (i = 0; i < numNodes; i++) {
+      for (i = 0; i < 3; i++) {
         network.nodes.push({
-          // We'll randomly make nodes in the top left corner.
-          x: Math.random() * width / 8,
-          y: Math.random() * height / 8,
+          // We'll make 3 blue nodes at the top left corner 
+          x: Math.random() * width/10,
+          y: Math.random() * height/10,
+          r: Math.random() * 10 + 5,
+          color: '#0868ac'
+        });
+      }
+      
+      for (i = 3; i < numNodes; i++) {
+        network.nodes.push({
+          // the rest of the nodes are anywhere on the screen
+          x: Math.random() * width,
+          y: Math.random() * height,
           r: Math.random() * 10 + 5
         });
       }
@@ -55,11 +65,8 @@
       // With the center module, this will render it centered by default.
       grapher.data(network);
 
-      // Render the graph
-      grapher.render();
-
-      // You can also manually call center:
-      grapher.center();
+      // Call center to the first 3 blue nodes
+      grapher.center([0,1,2]);
       grapher.render();
     </script>
   </body>

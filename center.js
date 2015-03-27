@@ -4,20 +4,24 @@
   * grapher.center
   * ------------------
   * 
-  * Center the network in the view.
+  * Center the whole network or provided nodeIds in the view.
   */
-  g.prototype.center = function () {
+  g.prototype.center = function (nodeIds) {
     var x = 0,
         y = 0,
         scale = 1,
-        nodes = this.data() ? this.data().nodes : null,
-        numNodes = nodes ? nodes.length : 0;
+        allNodes = this.data() ? this.data().nodes : null,
+        nodes = [];
+    if (nodeIds) for (i = 0; i < nodeIds.length; i++) { nodes.push(allNodes[nodeIds[i]]); }
+    else nodes = allNodes;
+
+    var numNodes = nodes ? nodes.length : 0;
 
     if (numNodes) { // get initial transform
       var minX = Infinity, maxX = -Infinity,
           minY = Infinity, maxY = -Infinity,
-          width = this.canvas.width / this.props.resolution,
-          height = this.canvas.height / this.props.resolution,
+          width = this.props.width,
+          height = this.props.height,
           pad = 1.1,
           i;
 
@@ -37,6 +41,21 @@
     }
 
     return this.scale(scale).translate([x, y]);
+  };
+
+/**
+  * grapher.centerToPoint
+  * ------------------
+  * 
+  * Center the network to the point with x and y coordinates
+  */
+  g.prototype.centerToPoint = function (point) {
+    var width = this.props.width,
+        height = this.props.height,
+        x = this.translate()[0] + width / 2 - point.x,
+        y = this.translate()[1] + height / 2 - point.y;
+
+    return this.translate([x, y]);
   };
 
 /**

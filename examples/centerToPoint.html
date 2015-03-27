@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Center</title>
+    <title>Center to point</title>
   </head>
   <body>
     <style type="text/css">
@@ -27,12 +27,11 @@
           numNodes = 10,
           numLinks = 30,
           i;
-
+      
       for (i = 0; i < numNodes; i++) {
         network.nodes.push({
-          // We'll randomly make nodes in the top left corner.
-          x: Math.random() * width / 8,
-          y: Math.random() * height / 8,
+          x: Math.random() * width,
+          y: Math.random() * height,
           r: Math.random() * 10 + 5
         });
       }
@@ -54,13 +53,15 @@
       // Give it the network data
       // With the center module, this will render it centered by default.
       grapher.data(network);
-
-      // Render the graph
       grapher.render();
 
-      // You can also manually call center:
-      grapher.center();
-      grapher.render();
+      // center on doubleclick
+      grapher.on('dblclick', function (e) {
+        var point = {x: e.offsetX, y: e.offsetY};
+        grapher.centerToPoint(point);
+        grapher.render();
+      });
+
     </script>
   </body>
 </html>
