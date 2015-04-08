@@ -1,2 +1,2 @@
-Grapher = require('ayasdi/grapher@87d4cf2');
+Grapher = require('ayasdi/grapher@1.0.3');
 require('../center.js')(Grapher);

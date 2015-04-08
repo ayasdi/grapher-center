@@ -21,8 +21,8 @@
       if (numNodes) { // get initial transform
         var minX = Infinity, maxX = -Infinity,
             minY = Infinity, maxY = -Infinity,
-            width = this.props.width,
-            height = this.props.height,
+            width = this.width(),
+            height = this.height(),
             pad = 1.1,
             i;
 
@@ -51,8 +51,8 @@
     * Center the network to the point with x and y coordinates
     */
     g.prototype.centerToPoint = function (point) {
-      var width = this.props.width,
-          height = this.props.height,
+      var width = this.width(),
+          height = this.height(),
           x = this.translate()[0] + width / 2 - point.x,
           y = this.translate()[1] + height / 2 - point.y;
 
