@@ -63,15 +63,14 @@
     * Extend data to call this.center,
     * scale and translate to track when the user modifies the transform.
     */
-    var data = g.prototype.data,
+    var render = g.prototype.render,
         scale = g.prototype.scale,
         translate = g.prototype.translate;
 
     g.prototype._hasModifiedTransform = false;
-    g.prototype.data = function () {
-      var res = data.apply(this, arguments);
-      if (res === this && !this._hasModifiedTransform) this.center();
-      return res;
+    g.prototype.render = function () {
+      if (!this._hasModifiedTransform) this.center();
+      return render.apply(this, arguments);
     };
     g.prototype.scale = function () {
       var res = scale.apply(this, arguments);
@@ -83,7 +82,7 @@
       if (res === this) this._hasModifiedTransform = true;
       return res;
     };
-  }
+  };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = center;
   else center(Grapher);
