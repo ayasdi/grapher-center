@@ -1,5 +1,6 @@
 {
   "name": "grapher-center",
+  "main": "center.js",
   "repository": "ayasdi/grapher-center",
   "description": "Center module for Grapher",
   "version": "0.0.1",
