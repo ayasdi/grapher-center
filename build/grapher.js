@@ -1,1151 +1,868 @@
-(function outer(modules, cache, entries){
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+window.Grapher = require('ayasdi-grapher');
+require('../center.js')(window.Grapher);
+
+},{"../center.js":2,"ayasdi-grapher":3}],2:[function(require,module,exports){
+;(function () {
+  var center = function (g) {
 
   /**
-   * Global
-   */
+    * grapher.center
+    * ------------------
+    * 
+    * Center the whole network or provided nodeIds in the view.
+    */
+    g.prototype.center = function (nodeIds) {
+      var x = 0,
+          y = 0,
+          scale = 1,
+          allNodes = this.data() ? this.data().nodes : null,
+          nodes = [];
+      if (nodeIds) for (i = 0; i < nodeIds.length; i++) { nodes.push(allNodes[nodeIds[i]]); }
+      else nodes = allNodes;
 
-  var global = (function(){ return this; })();
+      var numNodes = nodes ? nodes.length : 0;
 
-  /**
-   * Require `name`.
-   *
-   * @param {String} name
-   * @param {Boolean} jumped
-   * @api public
-   */
+      if (numNodes) { // get initial transform
+        var minX = Infinity, maxX = -Infinity,
+            minY = Infinity, maxY = -Infinity,
+            width = this.width(),
+            height = this.height(),
+            pad = 1.1,
+            i;
 
-  function require(name, jumped){
-    if (cache[name]) return cache[name].exports;
-    if (modules[name]) return call(name, require);
-    throw new Error('cannot find module "' + name + '"');
-  }
+        for (i = 0; i < numNodes; i++) {
+          if (nodes[i].x < minX) minX = nodes[i].x;
+          if (nodes[i].x > maxX) maxX = nodes[i].x;
+          if (nodes[i].y < minY) minY = nodes[i].y;
+          if (nodes[i].y > maxY) maxY = nodes[i].y;
+        }
+        
+        var dX = maxX - minX,
+            dY = maxY - minY;
 
-  /**
-   * Call module `id` and cache it.
-   *
-   * @param {Number} id
-   * @param {Function} require
-   * @return {Function}
-   * @api private
-   */
+        scale = Math.min(width / dX, height / dY, 2) / pad;
+        x = (width - dX * scale) / 2 - minX * scale;
+        y = (height - dY * scale) / 2 - minY * scale;
+      }
 
-  function call(id, require){
-    var m = cache[id] = { exports: {} };
-    var mod = modules[id];
-    var name = mod[2];
-    var fn = mod[0];
-
-    fn.call(m.exports, function(req){
-      var dep = modules[id][1][req];
-      return require(dep ? dep : req);
-    }, m, m.exports, outer, modules, cache, entries);
-
-    // expose as `name`.
-    if (name) cache[name] = cache[id];
-
-    return cache[id].exports;
-  }
+      return this.scale(scale).translate([x, y]);
+    };
 
   /**
-   * Require all entries exposing them on global if needed.
-   */
+    * grapher.centerToPoint
+    * ------------------
+    * 
+    * Center the network to the point with x and y coordinates
+    */
+    g.prototype.centerToPoint = function (point) {
+      var width = this.width(),
+          height = this.height(),
+          x = this.translate()[0] + width / 2 - point.x,
+          y = this.translate()[1] + height / 2 - point.y;
 
-  for (var id in entries) {
-    if (entries[id]) {
-      global[entries[id]] = require(id);
-    } else {
-      require(id);
-    }
-  }
-
-  /**
-   * Duo flag.
-   */
-
-  require.duo = true;
+      return this.translate([x, y]);
+    };
 
   /**
-   * Expose cache.
-   */
+    * Extend data to call this.center,
+    * scale and translate to track when the user modifies the transform.
+    */
+    var render = g.prototype.render,
+        scale = g.prototype.scale,
+        translate = g.prototype.translate;
 
-  require.cache = cache;
+    g.prototype._hasModifiedTransform = false;
+    g.prototype.render = function () {
+      if (!this._hasModifiedTransform) this.center();
+      return render.apply(this, arguments);
+    };
+    g.prototype.scale = function () {
+      var res = scale.apply(this, arguments);
+      if (res === this) this._hasModifiedTransform = true;
+      return res;
+    };
+    g.prototype.translate = function () {
+      var res = translate.apply(this, arguments);
+      if (res === this) this._hasModifiedTransform = true;
+      return res;
+    };
+  };
 
-  /**
-   * Expose modules
-   */
+  if (typeof module !== 'undefined' && module.exports) module.exports = center;
+  else center(Grapher);
+})();
 
-  require.modules = modules;
-
-  /**
-   * Return newest require.
-   */
-
-   return require;
-})({
-1: [function(require, module, exports) {
-Grapher = require('ayasdi/grapher@1.0.3');
-require('../center.js')(Grapher);
-
-}, {"ayasdi/grapher@1.0.3":2,"../center.js":3}],
-2: [function(require, module, exports) {
+},{}],3:[function(require,module,exports){
 // Ayasdi Inc. Copyright 2014
 // Grapher.js may be freely distributed under the Apache 2.0 license
 
-;(function () {
-  
 /**
   * Grapher
   * =======
   * WebGL network grapher rendering with PIXI
   */
-  function Grapher () {
-    this.initialize.apply(this, arguments);
-    return this;
-  }
+function Grapher () {
+  this.initialize.apply(this, arguments);
+  return this;
+}
 
 /**
   * Helpers and Renderers
   * =====================
   * Load helpers and renderers.
   */
-  var WebGLRenderer = Grapher.WebGLRenderer = require('./renderers/gl/renderer.js'),
-      CanvasRenderer = Grapher.CanvasRenderer = require('./renderers/canvas/renderer.js'),
-      Color = Grapher.Color = require('./helpers/color.js'),
-      Link = Grapher.Link = require('./helpers/link.js'),
-      Node = Grapher.Node = require('./helpers/node.js'),
-      u = Grapher.utils = require('./helpers/utilities.js');
+var WebGLRenderer = Grapher.WebGLRenderer = require('./renderers/gl/renderer.js'),
+    CanvasRenderer = Grapher.CanvasRenderer = require('./renderers/canvas/renderer.js'),
+    Color = Grapher.Color = require('./helpers/color.js'),
+    Link = Grapher.Link = require('./helpers/link.js'),
+    Node = Grapher.Node = require('./helpers/node.js'),
+    Shaders = Grapher.Shaders = require('./helpers/shaders.js'),
+    u = Grapher.utils = require('./helpers/utilities.js');
 
-  Grapher.prototype = {};
+Grapher.prototype = {};
 
-  /**
-    * grapher.initialize
-    * ------------------
-    * 
-    * Initialize is called when a grapher instance is created:
-    *     
-    *     var grapher = new Grapher(width, height, options);
-    *
-    */
-  Grapher.prototype.initialize = function (o) {
-    if (!o) o = {};
-    
-    // Extend default properties with options
-    this.props = u.extend({
-      color: 0x222222,
-      scale: 1,
-      translate: [0, 0],
-      resolution: window.devicePixelRatio || 1
-    }, o);
+/**
+  * grapher.initialize
+  * ------------------
+  *
+  * Initialize is called when a grapher instance is created:
+  *
+  *     var grapher = new Grapher(width, height, options);
+  *
+  */
+Grapher.prototype.initialize = function (o) {
+  if (!o) o = {};
 
-    if (!o.canvas) this.props.canvas = document.createElement('canvas');
-    if (!o.width) this.props.width = this.props.canvas.clientWidth;
-    if (!o.height) this.props.height = this.props.canvas.clientHeight;
-    this.canvas = this.props.canvas;
+  // Extend default properties with options
+  this.props = u.extend({
+    color: Color.parse('#222222'),
+    scale: 1,
+    translate: [0, 0],
+    resolution: window.devicePixelRatio || 1
+  }, o);
 
-    var webGL = this._getWebGL();
-    if (webGL) {
-      this.props.webGL = webGL;
-      this.props.canvas.addEventListener('webglcontextlost', function (e) { this._onContextLost(e); }.bind(this));
-      this.props.canvas.addEventListener('webglcontextrestored', function (e) { this._onContextRestored(e); }.bind(this));
-    }
+  if (!o.canvas) this.props.canvas = document.createElement('canvas');
+  this.canvas = this.props.canvas;
 
-    // Renderer and view
-    this.renderer =  webGL ? new WebGLRenderer(this.props) : new CanvasRenderer(this.props);
-    this.rendered = false;
+  var webGL = this._getWebGL();
+  if (webGL) {
+    this.props.webGL = webGL;
+    this.props.canvas.addEventListener('webglcontextlost', function (e) { this._onContextLost(e); }.bind(this));
+    this.props.canvas.addEventListener('webglcontextrestored', function (e) { this._onContextRestored(e); }.bind(this));
+    this.props.linkShaders = new Shaders(this.props.linkShaders);
+    this.props.nodeShaders = new Shaders(this.props.nodeShaders);
+  }
 
-    // Initialize sizes
-    this.resize(this.props.width, this.props.height);
+  // Renderer and view
+  this.renderer =  webGL ? new WebGLRenderer(this.props) : new CanvasRenderer(this.props);
+  this.rendered = false;
 
-    // Sprite array
-    this.links = [];
-    this.nodes = [];
+  // Sprite array
+  this.links = [];
+  this.nodes = [];
 
-    this.renderer.setLinks(this.links);
-    this.renderer.setNodes(this.nodes);
+  this.renderer.setLinks(this.links);
+  this.renderer.setNodes(this.nodes);
 
-    // Indices that will update
-    this.willUpdate = {};
-    this.updateAll = {};
-    this._clearUpdateQueue();
+  // Indices that will update
+  this.willUpdate = {};
+  this.updateAll = {};
+  this._clearUpdateQueue();
 
-    // Bind some updaters
-    this._updateLink = u.bind(this._updateLink, this);
-    this._updateNode = u.bind(this._updateNode, this);
-    this._updateLinkByIndex = u.bind(this._updateLinkByIndex, this);
-    this._updateNodeByIndex = u.bind(this._updateNodeByIndex, this);
-    this.animate = u.bind(this.animate, this);
+  // Bind some updaters
+  this._updateLink = u.bind(this._updateLink, this);
+  this._updateNode = u.bind(this._updateNode, this);
+  this._updateLinkByIndex = u.bind(this._updateLinkByIndex, this);
+  this._updateNodeByIndex = u.bind(this._updateNodeByIndex, this);
+  this.animate = u.bind(this.animate, this);
 
-    // Event Handlers
-    this.handlers = {};
+  // Event Handlers
+  this.handlers = {};
 
-    // Do any additional setup
-    u.eachKey(o, this.set, this);
-  };
+  // Do any additional setup
+  u.eachKey(o, this.set, this);
+};
 
-  /**
-    * grapher.set
-    * ------------------
-    * 
-    * General setter for a grapher's properties.
-    *
-    *     grapher.set(1, 'scale');
-    */
-  Grapher.prototype.set = function (val, key) {
-    var setter = this[key];
-    if (setter && u.isFunction(setter))
-      return setter.call(this, val);
-  };
+/**
+  * grapher.set
+  * ------------------
+  *
+  * General setter for a grapher's properties.
+  *
+  *     grapher.set(1, 'scale');
+  */
+Grapher.prototype.set = function (val, key) {
+  var setter = this[key];
+  if (setter && u.isFunction(setter))
+    return setter.call(this, val);
+};
 
-  /**
-    * grapher.on
-    * ------------------
-    * 
-    * Add a listener to a grapher event. Only one listener can be bound to an
-    * event at this time. Available events:
-    *
-    *   * mousedown
-    *   * mouseover
-    *   * mouseup
-    */
-  Grapher.prototype.on = function (event, fn) {
-    this.handlers[event] = this.handlers[event] || [];
-    this.handlers[event].push(fn);
-    this.canvas.addEventListener(event, fn, false);
-    return this;
-  };
+/**
+  * grapher.on
+  * ------------------
+  *
+  * Add a listener to a grapher event. Only one listener can be bound to an
+  * event at this time. Available events:
+  *
+  *   * mousedown
+  *   * mouseover
+  *   * mouseup
+  */
+Grapher.prototype.on = function (event, fn) {
+  this.handlers[event] = this.handlers[event] || [];
+  this.handlers[event].push(fn);
+  this.canvas.addEventListener(event, fn, false);
+  return this;
+};
 
-  /**
-    * grapher.off
-    * ------------------
-    * 
-    * Remove a listener from an event.
-    */
-  Grapher.prototype.off = function (event, fn) {
-    if (this.handlers[event]) {
-      var i = u.indexOf(this.handlers[event], fn);
-      if (i > -1) this.handlers[event].splice(i, 1);
-    }
+/**
+  * grapher.off
+  * ------------------
+  *
+  * Remove a listener from an event, or all listeners from an event if fn is not specified.
+  */
+Grapher.prototype.off = function (event, fn) {
+  var removeHandler = u.bind(function (fn) {
+    var i = u.indexOf(this.handlers[event], fn);
+    if (i > -1) this.handlers[event].splice(i, 1);
     this.canvas.removeEventListener(event, fn, false);
-    return this;
-  };
+  }, this);
 
-  /**
-    * grapher.data
-    * ------------------
-    * 
-    * Accepts network data in the form:
-    *
-    *     {
-    *       nodes: [{x: 0, y: 0, r: 20, color: (swatch or hex/rgb)}, ... ],
-    *       links: [{from: 0, to: 1, color: (swatch or hex/rgb)}, ... ]
-    *     }
-    */
-  Grapher.prototype.data = function (data) {
-    if (u.isUndefined(data)) return this.props.data;
+  if (fn && this.handlers[event]) removeHandler(fn);
+  else if (u.isUndefined(fn) && this.handlers[event]) u.each(this.handlers[event], removeHandler);
 
-    this.props.data = data;
-    this.exit();
-    this.enter();
-    this.update();
+  return this;
+};
 
-    return this;
-  };
+/**
+  * grapher.data
+  * ------------------
+  *
+  * Accepts network data in the form:
+  *
+  *     {
+  *       nodes: [{x: 0, y: 0, r: 20, color: (swatch or hex/rgb)}, ... ],
+  *       links: [{from: 0, to: 1, color: (swatch or hex/rgb)}, ... ]
+  *     }
+  */
+Grapher.prototype.data = function (data) {
+  if (u.isUndefined(data)) return this.props.data;
 
-  /**
-    * grapher.enter
-    * ------------------
-    * 
-    * Creates node and link sprites to match the number of nodes and links in the
-    * data.
-    */
-  Grapher.prototype.enter = function () {
-    var data = this.data();
-    if (this.links.length < data.links.length) {
-      var links = data.links.slice(this.links.length, data.links.length);
-      u.eachPop(links, u.bind(function () { this.links.push(new Link()); }, this));
-    }
+  this.props.data = data;
+  this.exit();
+  this.enter();
+  this.update();
 
-    if (this.nodes.length < data.nodes.length) {
-      var nodes = data.nodes.slice(this.nodes.length, data.nodes.length);
-      u.eachPop(nodes, u.bind(function () { this.nodes.push(new Node()); }, this));
-    }
+  return this;
+};
 
-    return this;
-  };
+/**
+  * grapher.enter
+  * ------------------
+  *
+  * Creates node and link sprites to match the number of nodes and links in the
+  * data.
+  */
+Grapher.prototype.enter = function () {
+  var data = this.data();
+  if (this.links.length < data.links.length) {
+    var links = data.links.slice(this.links.length, data.links.length);
+    u.eachPop(links, u.bind(function () { this.links.push(new Link()); }, this));
+  }
 
-  /**
-    * grapher.exit
-    * ------------------
-    * 
-    * Removes node and link sprites to match the number of nodes and links in the
-    * data.
-    */
-  Grapher.prototype.exit = function () {
-    var data = this.data(),
-        exiting = [];
+  if (this.nodes.length < data.nodes.length) {
+    var nodes = data.nodes.slice(this.nodes.length, data.nodes.length);
+    u.eachPop(nodes, u.bind(function () { this.nodes.push(new Node()); }, this));
+  }
 
-    if (data.links.length < this.links.length) {
-      this.links.splice(data.links.length, this.links.length - data.links.length);
-    }
-    if (data.nodes.length < this.nodes.length) {
-      this.nodes.splice(data.nodes.length, this.nodes.length - data.nodes.length);
-    }
+  return this;
+};
 
-    return this;
-  };
+/**
+  * grapher.exit
+  * ------------------
+  *
+  * Removes node and link sprites to match the number of nodes and links in the
+  * data.
+  */
+Grapher.prototype.exit = function () {
+  var data = this.data();
 
-  /**
-    * grapher.update
-    * ------------------
-    * 
-    * Add nodes and/or links to the update queue by index. Passing in no arguments will 
-    * add all nodes and links to the update queue. Node and link sprites in the update
-    * queue are updated at the time of rendering.
-    *
-    *     grapher.update(); // updates all nodes and links
-    *     grapher.update('links'); // updates only links
-    *     grapher.update('nodes', 0, 4); // updates nodes indices 0 to 3 (4 is not inclusive)
-    *     grapher.update('links', [0, 1, 2, 6, 32]); // updates links indexed by the indices
-    */
-  Grapher.prototype.update = function (type, start, end) {
-    var indices;
-    if (u.isArray(start)) indices = start;
-    else if (u.isNumber(start) && u.isNumber(end)) indices = u.range(start, end);
+  if (data.links.length < this.links.length) {
+    this.links.splice(data.links.length, this.links.length - data.links.length);
+  }
+  if (data.nodes.length < this.nodes.length) {
+    this.nodes.splice(data.nodes.length, this.nodes.length - data.nodes.length);
+  }
 
-    if (u.isArray(indices)) {
-      this._addToUpdateQueue(type, indices);
-      if (type === NODES) this._addToUpdateQueue(LINKS, this._findLinks(indices));
-    } else {
-      if (type !== NODES) this.updateAll.links = true;
-      if (type !== LINKS) this.updateAll.nodes = true;
-    }
-    return this;
-  };
+  return this;
+};
 
-  /**
-    * grapher.updateNode
-    * ------------------
-    * 
-    * Add an individual node to the update queue. Optionally pass in a boolean to
-    * specify whether or not to also add links connected with the node to the update queue.
-    */
-  Grapher.prototype.updateNode = function (index, willUpdateLinks) {
-    this._addToUpdateQueue(NODES, [index]);
-    if (willUpdateLinks) this._addToUpdateQueue(LINKS, this._findLinks([index]));
-    return this;
-  };
+/**
+  * grapher.update
+  * ------------------
+  *
+  * Add nodes and/or links to the update queue by index. Passing in no arguments will
+  * add all nodes and links to the update queue. Node and link sprites in the update
+  * queue are updated at the time of rendering.
+  *
+  *     grapher.update(); // updates all nodes and links
+  *     grapher.update('links'); // updates only links
+  *     grapher.update('nodes', 0, 4); // updates nodes indices 0 to 3 (4 is not inclusive)
+  *     grapher.update('links', [0, 1, 2, 6, 32]); // updates links indexed by the indices
+  */
+Grapher.prototype.update = function (type, start, end) {
+  var indices;
+  if (u.isArray(start)) indices = start;
+  else if (u.isNumber(start) && u.isNumber(end)) indices = u.range(start, end);
 
-  /**
-    * grapher.updateLink
-    * ------------------
-    * 
-    * Add an individual link to the update queue.
-    */
-  Grapher.prototype.updateLink = function (index) {
-    this._addToUpdateQueue(LINKS, [index]);
-    return this;
-  };
+  if (u.isArray(indices)) {
+    this._addToUpdateQueue(type, indices);
+    if (type === NODES) this._addToUpdateQueue(LINKS, this._findLinks(indices));
+  } else {
+    if (type !== NODES) this.updateAll.links = true;
+    if (type !== LINKS) this.updateAll.nodes = true;
+  }
+  return this;
+};
 
-  /**
-    * grapher.render
-    * ------------------
-    * 
-    * Updates each sprite and renders the network.
-    */
-  Grapher.prototype.render = function () {
-    this.rendered = true;
-    this._update();
-    this.renderer.render();
-    return this;
-  };
+/**
+  * grapher.updateNode
+  * ------------------
+  *
+  * Add an individual node to the update queue. Optionally pass in a boolean to
+  * specify whether or not to also add links connected with the node to the update queue.
+  */
+Grapher.prototype.updateNode = function (index, willUpdateLinks) {
+  this._addToUpdateQueue(NODES, [index]);
+  if (willUpdateLinks) this._addToUpdateQueue(LINKS, this._findLinks([index]));
+  return this;
+};
 
-  /**
-    * grapher.animate
-    * ------------------
-    * 
-    * Calls render in a requestAnimationFrame loop.
-    */
-  Grapher.prototype.animate = function (time) {
-    this.render();
-    this.currentFrame = requestAnimationFrame(this.animate);
-  };
+/**
+  * grapher.updateLink
+  * ------------------
+  *
+  * Add an individual link to the update queue.
+  */
+Grapher.prototype.updateLink = function (index) {
+  this._addToUpdateQueue(LINKS, [index]);
+  return this;
+};
 
-  /**
-    * grapher.play
-    * ------------------
-    * 
-    * Starts the animate loop.
-    */
-  Grapher.prototype.play = function () {
-    this.currentFrame = requestAnimationFrame(this.animate);
-    return this;
-  };
+/**
+  * grapher.clear
+  * ------------------
+  *
+  * Clears the canvas and grapher data.
+  */
+Grapher.prototype.clear = function () {
+  this.data({links: [], nodes: []});
+  this.render();
+  return this;
+};
 
-  /**
-    * grapher.pause
-    * ------------------
-    * 
-    * Pauses the animate loop.
-    */
-  Grapher.prototype.pause = function () {
-    if (this.currentFrame) cancelAnimationFrame(this.currentFrame);
-    this.currentFrame = null;
-    return this;
-  };
+/**
+  * grapher.render
+  * ------------------
+  *
+  * Updates each sprite and renders the network.
+  */
+Grapher.prototype.render = function () {
+  this.rendered = true;
+  this._update();
+  this.renderer.render();
+  return this;
+};
 
-  /**
-    * grapher.resize
-    * ------------------
-    * 
-    * Resize the grapher view.
-    */
-  Grapher.prototype.resize = function (width, height) {
-    this.props.width = width;
-    this.props.height = height;
+/**
+  * grapher.animate
+  * ------------------
+  *
+  * Calls render in a requestAnimationFrame loop.
+  */
+Grapher.prototype.animate = function () {
+  this.render();
+  this.currentFrame = requestAnimationFrame(this.animate);
+};
 
-    this.renderer.resize(width, height);
-    return this;
-  };
+/**
+  * grapher.play
+  * ------------------
+  *
+  * Starts the animate loop.
+  */
+Grapher.prototype.play = function () {
+  this.currentFrame = requestAnimationFrame(this.animate);
+  return this;
+};
 
-  /**
-    * grapher.width
-    * ------------------
-    * 
-    * Specify or retrieve the width.
-    */
-  Grapher.prototype.width = function (width) {
-    if (u.isUndefined(width)) return this.props.width;
-    this.resize(width, this.props.height);
-    return this;
-  };
+/**
+  * grapher.pause
+  * ------------------
+  *
+  * Pauses the animate loop.
+  */
+Grapher.prototype.pause = function () {
+  if (this.currentFrame) cancelAnimationFrame(this.currentFrame);
+  this.currentFrame = null;
+  return this;
+};
 
-   /**
-    * grapher.height
-    * ------------------
-    * 
-    * Specify or retrieve the height.
-    */
-  Grapher.prototype.height = function (height) {
-    if (u.isUndefined(height)) return this.props.height;
-    this.resize(this.props.width, height);
-    return this;
-  };
+/**
+  * grapher.resize
+  * ------------------
+  *
+  * Resize the grapher view.
+  */
+Grapher.prototype.resize = function (width, height) {
+  this.renderer.resize(width, height);
+  return this;
+};
 
-  /**
-    * grapher.transform
-    * ------------------
-    * 
-    * Set the scale and translate as an object.
-    * If no arguments are passed in, returns the current transform object.
-    */
-  Grapher.prototype.transform = function (transform) {
-    if (u.isUndefined(transform))
-      return {scale: this.props.scale, translate: this.props.translate};
+/**
+  * grapher.width
+  * ------------------
+  *
+  * Specify or retrieve the width.
+  */
+Grapher.prototype.width = function (width) {
+  if (u.isUndefined(width)) return this.canvas.clientWidth;
+  this.resize(width, null);
+  return this;
+};
 
-    this.scale(transform.scale);
-    this.translate(transform.translate);
-    return this;
-  };
+ /**
+  * grapher.height
+  * ------------------
+  *
+  * Specify or retrieve the height.
+  */
+Grapher.prototype.height = function (height) {
+  if (u.isUndefined(height)) return this.canvas.clientHeight;
+  this.resize(null, height);
+  return this;
+};
 
-  /**
-    * grapher.scale
-    * ------------------
-    * 
-    * Set the scale.
-    * If no arguments are passed in, returns the current scale.
-    */
-  Grapher.prototype.scale = function (scale) {
-    if (u.isUndefined(scale)) return this.props.scale;
-    if (u.isNumber(scale)) this.props.scale = scale;
-    this.updateTransform = true;
-    return this;
-  };
+/**
+  * grapher.transform
+  * ------------------
+  *
+  * Set the scale and translate as an object.
+  * If no arguments are passed in, returns the current transform object.
+  */
+Grapher.prototype.transform = function (transform) {
+  if (u.isUndefined(transform))
+    return {scale: this.props.scale, translate: this.props.translate};
 
-  /**
-    * grapher.translate
-    * ------------------
-    * 
-    * Set the translate.
-    * If no arguments are passed in, returns the current translate.
-    */
-  Grapher.prototype.translate = function (translate) {
-    if (u.isUndefined(translate)) return this.props.translate;
-    if (u.isArray(translate)) this.props.translate = translate;
-    this.updateTransform = true;
-    return this;
-  };
+  this.scale(transform.scale);
+  this.translate(transform.translate);
+  return this;
+};
 
-  /**
-    * grapher.color
-    * ------------------
-    * 
-    * Set the default color of nodes and links.
-    * If no arguments are passed in, returns the current default color.
-    */
-  Grapher.prototype.color = function (color) {
-    if (u.isUndefined(color)) return this.props.color;
-    this.props.color = Color.parse(color);
-    return this;
-  };
+/**
+  * grapher.scale
+  * ------------------
+  *
+  * Set the scale. Scale can be a number or a tuple of numbers representing [x, y] scales.
+  * If no arguments are passed in, returns the current scale.
+  */
+Grapher.prototype.scale = function (scale) {
+  if (u.isUndefined(scale)) return this.props.scale;
+  if (u.isNumber(scale) || u.isArray(scale)) this.props.scale = scale;
+  this.updateTransform = true;
+  return this;
+};
 
-  /**
-    * grapher.getDataPosition
-    * ------------------
-    * 
-    * Returns data space coordinates given display coordinates.
-    * If a single argument passed in, function considers first argument an object with x and y props.
-    */
-  Grapher.prototype.getDataPosition = function (x, y) {
-    var xCoord = u.isUndefined(y) ? x.x : x;
-    var yCoord = u.isUndefined(y) ? x.y : y;
-    x = this.renderer.untransformX(xCoord);
-    y = this.renderer.untransformY(yCoord);
-    return {x: x, y: y};
-  };
+/**
+  * grapher.translate
+  * ------------------
+  *
+  * Set the translate.
+  * If no arguments are passed in, returns the current translate.
+  */
+Grapher.prototype.translate = function (translate) {
+  if (u.isUndefined(translate)) return this.props.translate;
+  if (u.isArray(translate)) this.props.translate = translate;
+  this.updateTransform = true;
+  return this;
+};
 
-  /**
+/**
+  * grapher.color
+  * ------------------
+  *
+  * Set the default color of nodes and links.
+  * If no arguments are passed in, returns the current default color.
+  */
+Grapher.prototype.color = function (color) {
+  if (u.isUndefined(color)) return this.props.color;
+  this.props.color = Color.parse(color);
+  return this;
+};
+
+/**
+  * grapher.getDataPosition
+  * ------------------
+  *
+  * Returns data space coordinates given display coordinates.
+  * If a single argument passed in, function considers first argument an object with x and y props.
+  */
+Grapher.prototype.getDataPosition = function (x, y) {
+  var xCoord = u.isUndefined(y) ? x.x : x;
+  var yCoord = u.isUndefined(y) ? x.y : y;
+  x = this.renderer.untransformX(xCoord);
+  y = this.renderer.untransformY(yCoord);
+  return {x: x, y: y};
+};
+
+/**
   * grapher.getDisplayPosition
   * ------------------
-  * 
+  *
   * Returns display space coordinates given data coordinates.
   * If a single argument passed in, function considers first argument an object with x and y props.
   */
-  Grapher.prototype.getDisplayPosition = function (x, y) {
-    var xCoord = u.isUndefined(y) ? x.x : x;
-    var yCoord = u.isUndefined(y) ? x.y : y;
-    x = this.renderer.transformX(xCoord);
-    y = this.renderer.transformY(yCoord);
-    return {x: x, y: y};
-  };
+Grapher.prototype.getDisplayPosition = function (x, y) {
+  var xCoord = u.isUndefined(y) ? x.x : x;
+  var yCoord = u.isUndefined(y) ? x.y : y;
+  x = this.renderer.transformX(xCoord);
+  y = this.renderer.transformY(yCoord);
+  return {x: x, y: y};
+};
 
 /**
   * Private Functions
   * =================
-  * 
   */
 
-  /**
-    * grapher._addToUpdateQueue
-    * -------------------
-    * 
-    * Add indices to the nodes or links update queue.
-    *
-    */
-  Grapher.prototype._addToUpdateQueue = function (type, indices) {
-    var willUpdate = type === NODES ? this.willUpdate.nodes : this.willUpdate.links,
-        updateAll = type === NODES ? this.updateAll.nodes : this.updateAll.links,
-        spriteSet = type === NODES ? this.nodes : this.links;
+/**
+  * grapher._addToUpdateQueue
+  * -------------------
+  *
+  * Add indices to the nodes or links update queue.
+  *
+  */
+Grapher.prototype._addToUpdateQueue = function (type, indices) {
+  var willUpdate = type === NODES ? this.willUpdate.nodes : this.willUpdate.links,
+      updateAll = type === NODES ? this.updateAll.nodes : this.updateAll.links,
+      spriteSet = type === NODES ? this.nodes : this.links;
 
-    var insert = function (n) { u.uniqueInsert(willUpdate, n); };
-    if (!updateAll && u.isArray(indices)) u.each(indices, insert, this);
+  var insert = function (n) { u.uniqueInsert(willUpdate, n); };
+  if (!updateAll && u.isArray(indices)) u.each(indices, insert, this);
 
-    updateAll = updateAll || willUpdate.length >= spriteSet.length;
+  updateAll = updateAll || willUpdate.length >= spriteSet.length;
 
-    if (type === NODES) this.updateAll.nodes = updateAll;
-    else this.updateAll.links = updateAll;
-  };
+  if (type === NODES) this.updateAll.nodes = updateAll;
+  else this.updateAll.links = updateAll;
+};
 
-  /**
-    * grapher._clearUpdateQueue
-    * -------------------
-    * 
-    * Clear the update queue.
-    *
-    */
-  Grapher.prototype._clearUpdateQueue = function () {
-    this.willUpdate.links = [];
-    this.willUpdate.nodes = [];
-    this.updateAll.links = false;
-    this.updateAll.nodes = false;
-    this.updateTransform = false;
-  };
+/**
+  * grapher._clearUpdateQueue
+  * -------------------
+  *
+  * Clear the update queue.
+  *
+  */
+Grapher.prototype._clearUpdateQueue = function () {
+  this.willUpdate.links = [];
+  this.willUpdate.nodes = [];
+  this.updateAll.links = false;
+  this.updateAll.nodes = false;
+  this.updateTransform = false;
+};
 
-  /**
-    * grapher._update
-    * -------------------
-    * 
-    * Update nodes and links in the update queue.
-    *
-    */
-  Grapher.prototype._update = function () {
-    var updatingLinks = this.willUpdate.links,
-        updatingNodes = this.willUpdate.nodes,
-        i;
+/**
+  * grapher._update
+  * -------------------
+  *
+  * Update nodes and links in the update queue.
+  *
+  */
+Grapher.prototype._update = function () {
+  var updatingLinks = this.willUpdate.links;
+  var updatingNodes = this.willUpdate.nodes;
 
-    if (this.updateAll.links) u.each(this.links, this._updateLink);
-    else if (updatingLinks && updatingLinks.length) u.eachPop(updatingLinks, this._updateLinkByIndex);
+  if (this.updateAll.links) u.each(this.links, this._updateLink);
+  else if (updatingLinks && updatingLinks.length) u.eachPop(updatingLinks, this._updateLinkByIndex);
 
-    if (this.updateAll.nodes) u.each(this.nodes, this._updateNode);
-    else if (updatingNodes && updatingNodes.length) u.eachPop(updatingNodes, this._updateNodeByIndex);
+  if (this.updateAll.nodes) u.each(this.nodes, this._updateNode);
+  else if (updatingNodes && updatingNodes.length) u.eachPop(updatingNodes, this._updateNodeByIndex);
 
-    if (this.updateTransform) {
-      this.renderer.setScale(this.props.scale);
-      this.renderer.setTranslate(this.props.translate);
+  if (this.updateTransform) {
+    this.renderer.setScale(this.props.scale);
+    this.renderer.setTranslate(this.props.translate);
+  }
+
+  this._clearUpdateQueue();
+};
+
+Grapher.prototype._updateLink = function (link, i) {
+  var data = this.data(),
+      l = data.links[i],
+      from = data.nodes[l.from],
+      to = data.nodes[l.to];
+
+  var color = !u.isUndefined(l.color) ? this._findColor(l.color) :
+      Color.interpolate(this._findColor(from.color), this._findColor(to.color));
+
+  link.update(from.x, from.y, to.x, to.y, color);
+};
+
+Grapher.prototype._updateNode = function (node, i) {
+  var n = this.data().nodes[i];
+  node.update(n.x, n.y, n.r, this._findColor(n.color));
+};
+
+Grapher.prototype._updateNodeByIndex = function (i) { this._updateNode(this.nodes[i], i); };
+
+Grapher.prototype._updateLinkByIndex = function (i) { this._updateLink(this.links[i], i); };
+
+/**
+  * grapher._findLinks
+  * -------------------
+  *
+  * Search for links connected to the node indices provided.
+  *
+  * isLinked is a helper function that returns true if a link is
+  * connected to a node in indices.
+  */
+var isLinked = function (indices, l) {
+  var i, len = indices.length, flag = false;
+  for (i = 0; i < len; i++) {
+    if (l.to == indices[i] || l.from == indices[i]) {
+      flag = true;
+      break;
     }
+  }
+  return flag;
+};
 
-    this._clearUpdateQueue();
-  };
+Grapher.prototype._findLinks = function (indices) {
+  var links = this.data().links,
+      i, numLinks = links.length,
+      updatingLinks = [];
 
-  Grapher.prototype._updateLink = function (link, i) {
-    var data = this.data(),
-        l = data.links[i],
-        from = data.nodes[l.from],
-        to = data.nodes[l.to];
+  for (i = 0; i < numLinks; i++) {
+    if (isLinked(indices, links[i])) updatingLinks.push(i);
+  }
 
-    var color = !u.isUndefined(l.color) ? this._findColor(l.color) :
-        Color.interpolate(this._findColor(from.color), this._findColor(to.color));
+  return updatingLinks;
+};
 
-    link.update(from.x, from.y, to.x, to.y, color);
-  };
+/**
+  * grapher._findColor
+  * -------------------
+  *
+  * Search for a color whether it's defined by palette index, string,
+  * integer.
+  */
+Grapher.prototype._findColor = function (c) {
+  var color = Color.parse(c);
 
-  Grapher.prototype._updateNode = function (node, i) {
-    var n = this.data().nodes[i];
-    node.update(n.x, n.y, n.r, this._findColor(n.color));
-  };
+  // if color is still not set, use the default
+  if (u.isUndefined(color)) color = this.color();
+  return color;
+};
 
-  Grapher.prototype._updateNodeByIndex = function (i) { this._updateNode(this.nodes[i], i); };
+/**
+  * grapher._getWebGL
+  * -------------------
+  *
+  * get webGL context if available
+  *
+  */
+Grapher.prototype._getWebGL = function () {
+  var gl = null;
+  try { gl = this.canvas.getContext("webgl") || this.canvas.getContext("experimental-webgl"); }
+  catch (x) { gl = null; }
+  return gl;
+};
 
-  Grapher.prototype._updateLinkByIndex = function (i) { this._updateLink(this.links[i], i); };
+/**
+  * grapher._onContextLost
+  * ----------------------
+  *
+  * Handle context lost.
+  *
+  */
+Grapher.prototype._onContextLost = function (e) {
+  e.preventDefault();
+  if (this.currentFrame) cancelAnimationFrame(this.currentFrame);
+};
 
-  /**
-    * grapher._findLinks
-    * -------------------
-    * 
-    * Search for links connected to the node indices provided.
-    *
-    * isLinked is a helper function that returns true if a link is
-    * connected to a node in indices.
-    */
-  var isLinked = function (indices, l) {
-    var i, len = indices.length, flag = false;
-    for (i = 0; i < len; i++) {
-      if (l.to == indices[i] || l.from == indices[i]) {
-        flag = true;
-        break;
-      }
-    }
-    return flag;
-  };
-
-  Grapher.prototype._findLinks = function (indices) {
-    var links = this.data().links,
-        i, numLinks = links.length,
-        updatingLinks = [];
-
-    for (i = 0; i < numLinks; i++) {
-      if (isLinked(indices, links[i])) updatingLinks.push(i);
-    }
-
-    return updatingLinks;
-  };
-
-  /**
-    * grapher._findColor
-    * -------------------
-    * 
-    * Search for a color whether it's defined by palette index, string,
-    * integer.
-    */
-  Grapher.prototype._findColor = function (c) {
-    var color = Color.parse(c);
-
-    // if color is still not set, use the default
-    if (u.isNaN(color)) color = this.color();
-    return color;
-  };
-
-  /**
-    * grapher._getWebGL
-    * -------------------
-    * 
-    *get webGL context if available
-    *
-    */
-  Grapher.prototype._getWebGL = function () {
-    var gl = null;
-    try { gl = this.canvas.getContext("webgl") || this.canvas.getContext("experimental-webgl"); }
-    catch (x) { gl = null; }
-    return gl;
-  };
-
- /**
-    * grapher._onContextLost
-    * ----------------------
-    * 
-    * Handle context lost.
-    *
-    */
-  Grapher.prototype._onContextLost = function (e) {
-    e.preventDefault();
-    if (this.currentFrame) cancelAnimationFrame(this.currentFrame);
-  };
-
-  /**
-    * grapher._onContextRestored
-    * --------------------------
-    * 
-    * Handle context restored.
-    *
-    */
-  Grapher.prototype._onContextRestored = function (e) {
-    var webGL = this._getWebGL();
-    this.renderer.initGL(webGL);
-    if (this.currentFrame) this.play(); // Play the graph if it was running.
-    else if (this.rendered) this.render();
-  };
+/**
+  * grapher._onContextRestored
+  * --------------------------
+  *
+  * Handle context restored.
+  *
+  */
+Grapher.prototype._onContextRestored = function () {
+  var webGL = this._getWebGL();
+  this.renderer.initGL(webGL);
+  if (this.currentFrame) this.play(); // Play the graph if it was running.
+  else if (this.rendered) this.render();
+};
 
 
 /**
   * Grapher Static Properties
   * =========================
   */
-  var NODES = Grapher.NODES = 'nodes';
-  var LINKS = Grapher.LINKS = 'links';
+var NODES = Grapher.NODES = 'nodes';
+var LINKS = Grapher.LINKS = 'links';
 
-  if (module && module.exports) module.exports = Grapher;
-})();
+module.exports = Grapher;
 
-}, {"./renderers/gl/renderer.js":4,"./renderers/canvas/renderer.js":5,"./helpers/color.js":6,"./helpers/link.js":7,"./helpers/node.js":8,"./helpers/utilities.js":9}],
-4: [function(require, module, exports) {
-;(function () {
-  var LinkVertexShaderSource = require('./shaders/link.vert'),
-      LinkFragmentShaderSource = require('./shaders/link.frag'),
-      NodeVertexShaderSource = require('./shaders/node.vert'),
-      NodeFragmentShaderSource = require('./shaders/node.frag'),
-      Renderer = require('../renderer.js');
-
-  var WebGLRenderer = Renderer.extend({
-    init: function (o) {
-      this._super(o);
-      this.initGL(o.webGL);
-
-      this.NODE_ATTRIBUTES = 6;
-      this.LINKS_ATTRIBUTES = 3;
-    },
-
-    initGL: function (gl) {
-      this.gl = gl;
-      this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-
-      this.linksProgram = this.initShaders(LinkVertexShaderSource, LinkFragmentShaderSource);
-      this.nodesProgram = this.initShaders(NodeVertexShaderSource, NodeFragmentShaderSource);
-
-      this.gl.linkProgram(this.linksProgram);
-      this.gl.linkProgram(this.nodesProgram);
-
-      this.gl.blendFuncSeparate(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA, this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
-      this.gl.enable(this.gl.BLEND);
-    },
-
-    initShaders: function (vertexShaderSource, fragmentShaderSource) {
-      var vertexShader = this.getShaders(this.gl.VERTEX_SHADER, vertexShaderSource);
-      var fragmentShader = this.getShaders(this.gl.FRAGMENT_SHADER, fragmentShaderSource);
-      var shaderProgram = this.gl.createProgram();
-      this.gl.attachShader(shaderProgram, vertexShader);
-      this.gl.attachShader(shaderProgram, fragmentShader);
-      return shaderProgram;
-    },
-
-    getShaders: function (type, source) {
-      var shader = this.gl.createShader(type);
-      this.gl.shaderSource(shader, source);
-      this.gl.compileShader(shader);
-      return shader;
-    },
-
-    updateNodesBuffer: function () {
-      var j = 0;
-      this.nodes = [];
-      for (var i = 0; i < this.nodeObjects.length; i++) {
-        var node = this.nodeObjects[i];
-        var cx = this.transformX(node.x) * this.resolution;
-        var cy = this.transformY(node.y) * this.resolution;
-        // adding one px to keep shader area big enough for antialiasing pixesls
-        var r = node.r * Math.abs(this.scale * this.resolution) + 1;
-        var color = node.color;
-
-
-        this.nodes[j++] = (cx - r);
-        this.nodes[j++] = (cy - r);
-        this.nodes[j++] = color;
-        this.nodes[j++] = cx;
-        this.nodes[j++] = cy;
-        this.nodes[j++] = r;
-
-        this.nodes[j++] = (cx + (1 + Math.sqrt(2))*r);
-        this.nodes[j++] = cy - r;
-        this.nodes[j++] = color;
-        this.nodes[j++] = cx;
-        this.nodes[j++] = cy;
-        this.nodes[j++] = r;
-
-        this.nodes[j++] = (cx - r);
-        this.nodes[j++] = (cy + (1 + Math.sqrt(2))*r);
-        this.nodes[j++] = color;
-        this.nodes[j++] = cx;
-        this.nodes[j++] = cy;
-        this.nodes[j++] = r;
-      }
-    },
-
-    updateLinksBuffer: function () {
-      var j = 0;
-      this.links = [];
-      for (var i = 0; i < this.linkObjects.length; i++) {
-        var link = this.linkObjects[i];
-        var x1 = this.transformX(link.x1) * this.resolution;
-        var y1 = this.transformY(link.y1) * this.resolution;
-        var x2 = this.transformX(link.x2) * this.resolution;
-        var y2 = this.transformY(link.y2) * this.resolution;
-        var color = link.color;
-
-        this.links[j++] = x1;
-        this.links[j++] = y1;
-        this.links[j++] = color;
-
-        this.links[j++] = x2;
-        this.links[j++] = y2;
-        this.links[j++] = color;
-      }
-    },
-
-    resize: function (width, height) {
-      this._super(width, height);
-      this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-    },
-
-    render: function () {
-      this.updateNodesBuffer();
-      this.updateLinksBuffer();
-      this.renderLinks(); // links have to be rendered first because of blending;
-      this.renderNodes();
-    },
-
-    renderLinks: function () {
-      var program = this.linksProgram;
-      this.gl.useProgram(program);
-
-      var linksBuffer = new Float32Array(this.links);
-      var buffer = this.gl.createBuffer();
-
-      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
-      this.gl.bufferData(this.gl.ARRAY_BUFFER, linksBuffer, this.gl.STATIC_DRAW);
-
-      var resolutionLocation = this.gl.getUniformLocation(program, 'u_resolution');
-      this.gl.uniform2f(resolutionLocation, this.canvas.width, this.canvas.height);
-
-      var positionLocation = this.gl.getAttribLocation(program, 'a_position');
-      var colorLocation = this.gl.getAttribLocation(program, 'a_color');
-      
-      this.gl.enableVertexAttribArray(positionLocation);
-      this.gl.enableVertexAttribArray(colorLocation);
-
-      this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, this.LINKS_ATTRIBUTES * Float32Array.BYTES_PER_ELEMENT, 0);
-      this.gl.vertexAttribPointer(colorLocation, 1, this.gl.FLOAT, false, this.LINKS_ATTRIBUTES * Float32Array.BYTES_PER_ELEMENT, 8);
-
-      var lineWidthRange = this.gl.getParameter(this.gl.ALIASED_LINE_WIDTH_RANGE), // ex [1,10] 
-          lineWidth = this.lineWidth * Math.abs(this.scale * this.resolution),
-          lineWidthInRange = Math.min(Math.max(lineWidth, lineWidthRange[0]), lineWidthRange[1]);
-
-      this.gl.lineWidth(lineWidthInRange);
-      this.gl.drawArrays(this.gl.LINES, 0, this.links.length/this.LINKS_ATTRIBUTES);
-    },
-
-    renderNodes: function () {
-      var program = this.nodesProgram;
-      this.gl.useProgram(program);
-
-      var nodesBuffer = new Float32Array(this.nodes);
-      var buffer = this.gl.createBuffer();
-
-      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
-      this.gl.bufferData(this.gl.ARRAY_BUFFER, nodesBuffer, this.gl.STATIC_DRAW);
-
-      var resolutionLocation = this.gl.getUniformLocation(program, 'u_resolution');
-      this.gl.uniform2f(resolutionLocation, this.canvas.width, this.canvas.height);
-
-      var positionLocation = this.gl.getAttribLocation(program, 'a_position');
-      var colorLocation = this.gl.getAttribLocation(program, 'a_color');
-      var centerLocation = this.gl.getAttribLocation(program, 'a_center');
-      var radiusLocation = this.gl.getAttribLocation(program, 'a_radius');
-      
-      this.gl.enableVertexAttribArray(positionLocation);
-      this.gl.enableVertexAttribArray(colorLocation);
-      this.gl.enableVertexAttribArray(centerLocation);
-      this.gl.enableVertexAttribArray(radiusLocation);
-
-      this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, this.NODE_ATTRIBUTES * Float32Array.BYTES_PER_ELEMENT, 0);
-      this.gl.vertexAttribPointer(colorLocation, 1, this.gl.FLOAT, false, this.NODE_ATTRIBUTES * Float32Array.BYTES_PER_ELEMENT, 8);
-      this.gl.vertexAttribPointer(centerLocation, 2, this.gl.FLOAT, false, this.NODE_ATTRIBUTES * Float32Array.BYTES_PER_ELEMENT, 12);
-      this.gl.vertexAttribPointer(radiusLocation, 1, this.gl.FLOAT, false, this.NODE_ATTRIBUTES * Float32Array.BYTES_PER_ELEMENT, 20);
-
-      this.gl.drawArrays(this.gl.TRIANGLES, 0, this.nodes.length/this.NODE_ATTRIBUTES);
-    }
-  });
-
-  if (module && module.exports) module.exports = WebGLRenderer;
-})();
-
-}, {"./shaders/link.vert":10,"./shaders/link.frag":11,"./shaders/node.vert":12,"./shaders/node.frag":13,"../renderer.js":14}],
-10: [function(require, module, exports) {
-module.exports = 'uniform vec2 u_resolution;\nattribute vec2 a_position;\nattribute float a_color;\nvarying vec4 color;\nvarying vec2 position;\nvarying vec2 resolution;\nvoid main() {\n  vec2 clipspace = a_position / u_resolution * 2.0 - 1.0;\n  gl_Position = vec4(clipspace * vec2(1, -1), 0, 1);\n  float c = a_color;\n  color.b = mod(c, 256.0); c = floor(c / 256.0);\n  color.g = mod(c, 256.0); c = floor(c / 256.0);\n  color.r = mod(c, 256.0); c = floor(c / 256.0); color /= 255.0;\n  color.a = 1.0;\n}\n';
-}, {}],
-11: [function(require, module, exports) {
-module.exports = 'precision mediump float;\nvarying vec4 color;\nvoid main() {\n  gl_FragColor = color;\n}\n';
-}, {}],
-12: [function(require, module, exports) {
-module.exports = 'uniform vec2 u_resolution;\nattribute vec2 a_position;\nattribute float a_color;\nattribute vec2 a_center;\nattribute float a_radius;\nvarying vec3 rgb;\nvarying vec2 center;\nvarying vec2 resolution;\nvarying float radius;\nvoid main() {\n  vec2 clipspace = a_position / u_resolution * 2.0 - 1.0;\n  gl_Position = vec4(clipspace * vec2(1, -1), 0, 1);\n  float c = a_color;\n  rgb.b = mod(c, 256.0); c = floor(c / 256.0);\n  rgb.g = mod(c, 256.0); c = floor(c / 256.0);\n  rgb.r = mod(c, 256.0); c = floor(c / 256.0); rgb /= 255.0;\n  radius = a_radius - 1.0 ;\n  center = a_center;\n  resolution = u_resolution;\n}\n';
-}, {}],
-13: [function(require, module, exports) {
-module.exports = 'precision mediump float;\nvarying vec3 rgb;\nvarying vec2 center;\nvarying vec2 resolution;\nvarying float radius;\nvoid main() {\n  vec4 color0 = vec4(0.0, 0.0, 0.0, 0.0);\n  float x = gl_FragCoord.x;\n  float y = resolution[1] - gl_FragCoord.y;\n  float dx = center[0] - x;\n  float dy = center[1] - y;\n  float distance = sqrt(dx*dx + dy*dy);\n  float diff = distance - radius;\n  if ( diff < 0.0 ) \n    gl_FragColor = vec4(rgb, 1.0);\n  else if ( diff >= 0.0 && diff <= 1.0 )\n    gl_FragColor = vec4(rgb, 1.0 - diff);\n  else \n    gl_FragColor = color0;\n}\n';
-}, {}],
-14: [function(require, module, exports) {
-;(function () {
-
-  var Renderer = function () {
-    if ( !initializing && this.init )
-      this.init.apply(this, arguments);
-    return this;
-  };
-
-  Renderer.prototype = {
-    init: function (o) {
-      this.canvas = o.canvas;
-      this.lineWidth = o.lineWidth || 2;
-      this.resolution = o.resolution || 1;
-      this.scale = o.scale;
-      this.translate = o.translate;
-    },
-    setNodes: function (nodes) { this.nodeObjects = nodes; },
-    setLinks: function (links) { this.linkObjects = links; },
-    setScale: function (scale) { this.scale = scale; },
-    setTranslate: function (translate) { this.translate = translate; },
-    transformX: function (x) { return x * this.scale + this.translate[0]; },
-    transformY: function (y) { return y * this.scale + this.translate[1]; },
-    untransformX: function (x) { return (x - this.translate[0]) / this.scale; },
-    untransformY: function (y) { return (y - this.translate[1]) / this.scale; },
-    resize: function (width, height) {
-      var displayWidth  = width * this.resolution;
-      var displayHeight = height * this.resolution;
-
-      this.canvas.width  = displayWidth;
-      this.canvas.height = displayHeight;
-    }
-  };
-
-  var initializing = false;
-
-  Renderer.extend = function (prop) {
-    var _super = this.prototype;
-
-    initializing = true;
-    var prototype = new this();
-    initializing = false;
-
-    prototype._super = this.prototype;
-    for (var name in prop) {
-      prototype[name] = typeof prop[name] == "function" &&
-        typeof _super[name] == "function" && /\b_super\b/.test(prop[name]) ?
-        (function(name, fn){
-          return function() {
-            var tmp = this._super;
-           
-            // Add a new ._super() method that is the same method
-            // but on the super-class
-            this._super = _super[name];
-           
-            // The method only need to be bound temporarily, so we
-            // remove it when we're done executing
-            var ret = fn.apply(this, arguments);
-            this._super = tmp;
-           
-            return ret;
-          };
-        })(name, prop[name]) :
-        prop[name];
-    }
-
-    // The dummy class constructor
-    function Renderer () {
-      // All construction is actually done in the init method
-      if ( !initializing && this.init )
-        this.init.apply(this, arguments);
-    }
-   
-    // Populate our constructed prototype object
-    Renderer.prototype = prototype;
-   
-    // Enforce the constructor to be what we expect
-    Renderer.prototype.constructor = Renderer;
- 
-    // And make this class extendable
-    Renderer.extend = arguments.callee;
-   
-    return Renderer;
-  };
-
-  if (module && module.exports) module.exports = Renderer;
-})();
-
-}, {}],
-5: [function(require, module, exports) {
-;(function () {
-
-  var Renderer = require('../renderer.js');
-  var Color = require('../../helpers/color.js');
-  
-  var CanvasRenderer = Renderer.extend({
-    init: function (o) {
-      this._super(o);
-
-      this.context = this.canvas.getContext('2d');
-    },
-
-    render: function () {
-      this.context.clearRect( 0 , 0 , this.canvas.width, this.canvas.height );
-      this.renderLinks();
-      this.renderNodes();
-    },
-
-    renderNodes: function () {
-      for (var i = 0 ; i < this.nodeObjects.length; i ++) {
-        var node = this.nodeObjects[i];
-        var cx = this.transformX(node.x) * this.resolution;
-        var cy = this.transformY(node.y) * this.resolution;
-        var r = node.r * Math.abs(this.scale * this.resolution);
-
-        this.context.beginPath();
-        this.context.arc(cx, cy, r, 0, 2 * Math.PI, false);
-        this.context.fillStyle = Color.toRgb(node.color);
-        this.context.fill();
-      }
-    },
-
-    renderLinks: function () {
-      for (var i = 0 ; i < this.linkObjects.length; i ++) {
-        var link = this.linkObjects[i];
-        var x1 = this.transformX(link.x1) * this.resolution;
-        var y1 = this.transformY(link.y1) * this.resolution;
-        var x2 = this.transformX(link.x2) * this.resolution;
-        var y2 = this.transformY(link.y2) * this.resolution;
-
-        this.context.beginPath();
-        this.context.moveTo(x1, y1);
-        this.context.lineTo(x2, y2);
-        this.context.lineWidth = this.lineWidth * Math.abs(this.scale * this.resolution);
-
-        this.context.strokeStyle = Color.toRgb(link.color);
-        this.context.stroke();
-      }
-    }
-  });
-  
-  if (module && module.exports) module.exports = CanvasRenderer;
-})();
-
-}, {"../renderer.js":14,"../../helpers/color.js":6}],
-6: [function(require, module, exports) {
+},{"./helpers/color.js":4,"./helpers/link.js":5,"./helpers/node.js":6,"./helpers/shaders.js":7,"./helpers/utilities.js":8,"./renderers/canvas/renderer.js":9,"./renderers/gl/renderer.js":10}],4:[function(require,module,exports){
 // Ayasdi Inc. Copyright 2014
 // Color.js may be freely distributed under the Apache 2.0 license
 
-var Color = module.exports = {
-  hexToRgb: hexToRgb,
-  rgbToHex: rgbToHex,
-  toRgb: toRgb,
+/**
+  * Color.js
+  * ========
+  * Color helper.
+  *
+  * Colors parsed by this helper will be in the format:
+  * [r, g, b, a]
+  * where each color attribute is a value between 0-255.
+  */
+
+module.exports = {
   interpolate: interpolate,
   parse: parse
 };
 
-function hexToRgb (hex) {
-  return {r: (hex >> 16) & 0xff, g: (hex >> 8) & 0xff, b: hex & 0xff};
-};
-
-function rgbToHex (r, g, b) {
-  return r << 16 | g << 8 | b;
-};
-
 function interpolate (a, b, amt) {
   amt = amt === undefined ? 0.5 : amt;
-  var colorA = hexToRgb(a),
-      colorB = hexToRgb(b),
-      interpolated = {
-        r: colorA.r + (colorB.r - colorA.r) * amt,
-        g: colorA.g + (colorB.g - colorA.g) * amt,
-        b: colorA.b + (colorB.b - colorA.b) * amt
-      };
-  return rgbToHex(interpolated.r, interpolated.g, interpolated.b);
-};
+  var interpolated = a.map(function (colorA, index) {
+    var colorB = b[index];
+    return colorA + (colorB - colorA) * amt;
+  });
+  return interpolated;
+}
 
 function parse (c) {
-  var color = parseInt(c);
+  var color;
   if (typeof c === 'string') {
-    if (c.split('#').length > 1) { // hex format '#ffffff'
-      color = parseInt(c.replace('#', ''), 16);
-    }
+    var string = c.replace(/ /g, ''); // strip spaces immediately
 
-    else if (c.split('rgb(').length > 1) { // rgb format 'rgb(255, 255, 255)'
-      var rgb = c.substring(4, c.length-1).replace(/ /g, '').split(',');
-      color = rgbToHex(rgb[0], rgb[1], rgb[2]);
-    }
+    if (c.split('#').length > 1) color = parseHex(string);
+    else if (c.split('rgb(').length > 1) color = parseRgb(string);
+    else if (c.split('rgba(').length > 1) color = parseRgba(string);
+  } else if (typeof c === 'number') {
+    color = parseColorInteger(parseInt(c, 10));
   }
   return color;
+}
+
+function parseColorInteger (intColor) {
+  return [
+    Math.floor(intColor / Math.pow(2, 16)) % Math.pow(2, 8),
+    Math.floor(intColor / Math.pow(2, 8)) % Math.pow(2, 8),
+    intColor % Math.pow(2, 8),
+    Math.floor(intColor / Math.pow(2, 24)) % Math.pow(2, 8)
+  ];
+}
+
+function parseHex (string) {
+  var hex = string.replace('#', '');
+  if (hex.length === 6) hex = 'ff' + hex; // prepend full alpha if needed
+  return parseColorInteger(parseInt(hex, 16));
+}
+
+function parseRgb (string) {
+  var rgba = string.substring(4, string.length - 1).split(',').map(function (c) {
+    return parseInt(c, 10);
+  });
+  rgba[3] = 255; // full alpha
+  return rgba;
+}
+
+function parseRgba (string) {
+  var rgba = string.substring(5, string.length - 1).split(',').map(function (c) {
+    return parseFloat(c, 10);
+  });
+  // Assume that if the given alpha is 0-1, it's normalized.
+  rgba[3] = rgba[3] <= 1 ? 255 * rgba[3] : rgba[3];
+  return rgba;
+}
+
+},{}],5:[function(require,module,exports){
+function Link () {
+  this.x1 = 0;
+  this.y1 = 0;
+  this.x2 = 0;
+  this.y2 = 0;
+  this.color = null;
+  return this;
+}
+
+Link.prototype.update = function (x1, y1, x2, y2, color) {
+  this.x1 = x1;
+  this.y1 = y1;
+  this.x2 = x2;
+  this.y2 = y2;
+  this.color = color;
+  return this;
 };
 
-function toRgb (intColor) {
-  var r = (intColor >> 16) & 255;
-  var g = (intColor >> 8) & 255;
-  var b = intColor & 255;
+module.exports = Link;
 
-  return 'rgb(' + r + ', ' + g + ', ' + b + ')';
+},{}],6:[function(require,module,exports){
+function Node () {
+  this.x = 0;
+  this.y = 0;
+  this.r = 10;
+  this.color = null;
+  return this;
+}
+
+Node.prototype.update = function (x, y, r, color) {
+  this.x = x;
+  this.y = y;
+  this.r = r;
+  this.color = color;
+  return this;
 };
-}, {}],
-7: [function(require, module, exports) {
+
+module.exports = Node;
+
+},{}],7:[function(require,module,exports){
 ;(function () {
-  function Link () {
-    this.x1 = 0;
-    this.y1 = 0;
-    this.x2 = 0;
-    this.y2 = 0;
-    this.color = 0;
+  function Shaders (obj) {
+    this.vertexCode = obj && obj.vertexCode || null;
+    this.fragmentCode = obj && obj.fragmentCode || null;
     return this;
   }
 
-  Link.prototype.update = function (x1, y1, x2, y2, color) {
-    this.x1 = x1;
-    this.y1 = y1;
-    this.x2 = x2;
-    this.y2 = y2;
-    this.color = color;
-    return this;
+  Shaders.prototype.addVertexAttr = function (name, value, size, type, normalized) {
+    var attrs = {
+      name: name,
+      value: value,
+      size: size,
+      type: type,
+      normalized: normalized
+    };
+
+    this.vertexAttrs.push(attrs);
   };
 
-  if (module && module.exports) module.exports = Link;
-})();
+  Shaders.prototype.addUniformAttr = function (name, value) {
+    var attrs = {
+      name: name,
+      value: value
+    };
 
-}, {}],
-8: [function(require, module, exports) {
-;(function () {
-  function Node () {
-    this.x = 0;
-    this.y = 0;
-    this.r = 10;
-    this.color = 0;
-    return this;
-  }
-
-  Node.prototype.update = function (x, y, r, color) {
-    this.x = x;
-    this.y = y;
-    this.r = r;
-    this.color = color;
-    return this;
+    this.uniformAttrs.push(attrs);
   };
 
-  if (module && module.exports) module.exports = Node;
+  if (module && module.exports) module.exports = Shaders;
 })();
 
-}, {}],
-9: [function(require, module, exports) {
+},{}],8:[function(require,module,exports){
 /**
  * Utilities
  * =========
@@ -1305,7 +1022,7 @@ function sortedIndex (arr, n) {
 
   while (min < max) {
     var mid = min + max >>> 1;
-    if (n < mid) max = mid;
+    if (n < arr[mid]) max = mid;
     else min = mid + 1;
   }
 
@@ -1419,96 +1136,416 @@ function isNaN (o) {
   return isNumber(o) && o !== +o;
 }
 
-}, {}],
-3: [function(require, module, exports) {
+},{}],9:[function(require,module,exports){
+var Renderer = require('../renderer.js');
+
+var CanvasRenderer = Renderer.extend({
+  init: function (o) {
+    this._super(o);
+    this.context = this.canvas.getContext('2d');
+  },
+
+  render: function () {
+    this.resize();
+    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.renderLinks();
+    this.renderNodes();
+  },
+
+  renderNodes: function () {
+    for (var i = 0 ; i < this.nodeObjects.length; i ++) {
+      var node = this.nodeObjects[i];
+      var cx = this.transformX(node.x) * this.resolution;
+      var cy = this.transformY(node.y) * this.resolution;
+      var avgScale = (this.scale[0] + this.scale[1]) / 2;
+      var r = node.r * Math.abs(avgScale * this.resolution);
+
+      this.context.beginPath();
+      this.context.arc(cx, cy, r, 0, 2 * Math.PI, false);
+      this.context.fillStyle = 'rgba(' + node.color.join(',') + ')';
+      this.context.fill();
+    }
+  },
+
+  renderLinks: function () {
+    for (var i = 0 ; i < this.linkObjects.length; i ++) {
+      var link = this.linkObjects[i];
+      var x1 = this.transformX(link.x1) * this.resolution;
+      var y1 = this.transformY(link.y1) * this.resolution;
+      var x2 = this.transformX(link.x2) * this.resolution;
+      var y2 = this.transformY(link.y2) * this.resolution;
+      var avgScale = (this.scale[0] + this.scale[1]) / 2;
+
+      this.context.beginPath();
+      this.context.moveTo(x1, y1);
+      this.context.lineTo(x2, y2);
+      this.context.lineWidth = this.lineWidth * Math.abs(avgScale * this.resolution);
+      this.context.strokeStyle = 'rgba(' + link.color.join(',') + ')';
+      this.context.stroke();
+    }
+  }
+});
+
+module.exports = CanvasRenderer;
+
+},{"../renderer.js":15}],10:[function(require,module,exports){
+var LinkVertexShaderSource = require('./shaders/link.vert.js'),
+    LinkFragmentShaderSource = require('./shaders/link.frag.js'),
+    NodeVertexShaderSource = require('./shaders/node.vert.js'),
+    NodeFragmentShaderSource = require('./shaders/node.frag.js'),
+    Renderer = require('../renderer.js');
+
+var WebGLRenderer = Renderer.extend({
+  init: function (o) {
+    this.gl = o.webGL;
+
+    this.linkVertexShader = o.linkShaders && o.linkShaders.vertexCode || LinkVertexShaderSource;
+    this.linkFragmentShader = o.linkShaders && o.linkShaders.fragmentCode || LinkFragmentShaderSource;
+    this.nodeVertexShader = o.nodeShaders && o.nodeShaders.vertexCode ||  NodeVertexShaderSource;
+    this.nodeFragmentShader = o.nodeShaders && o.nodeShaders.fragmentCode || NodeFragmentShaderSource;
+
+
+    this._super(o);
+    this.initGL();
+
+    this.NODE_ATTRIBUTES = 9;
+    this.LINK_ATTRIBUTES = 6;
+  },
+
+  initGL: function (gl) {
+    if (gl) this.gl = gl;
+
+    this.linksProgram = this.initShaders(this.linkVertexShader, this.linkFragmentShader);
+    this.nodesProgram = this.initShaders(this.nodeVertexShader, this.nodeFragmentShader);
+
+    this.gl.linkProgram(this.linksProgram);
+    this.gl.linkProgram(this.nodesProgram);
+
+    this.gl.blendFuncSeparate(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA, this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
+    this.gl.enable(this.gl.BLEND);
+  },
+
+  initShaders: function (vertexShaderSource, fragmentShaderSource) {
+    var vertexShader = this.getShaders(this.gl.VERTEX_SHADER, vertexShaderSource);
+    var fragmentShader = this.getShaders(this.gl.FRAGMENT_SHADER, fragmentShaderSource);
+    var shaderProgram = this.gl.createProgram();
+    this.gl.attachShader(shaderProgram, vertexShader);
+    this.gl.attachShader(shaderProgram, fragmentShader);
+    return shaderProgram;
+  },
+
+  getShaders: function (type, source) {
+    var shader = this.gl.createShader(type);
+    this.gl.shaderSource(shader, source);
+    this.gl.compileShader(shader);
+    return shader;
+  },
+
+  updateNodesBuffer: function () {
+    var j = 0;
+    this.nodes = [];
+    for (var i = 0; i < this.nodeObjects.length; i++) {
+      var node = this.nodeObjects[i];
+      var cx = this.transformX(node.x) * this.resolution;
+      var cy = this.transformY(node.y) * this.resolution;
+      var avgScale = (this.scale[0] + this.scale[1]) / 2;
+      var r = node.r * Math.abs(avgScale * this.resolution) + 1;
+      // adding few px to keep shader area big enough for antialiasing pixesls
+      var shaderSize = r + 10;
+
+      this.nodes[j++] = (cx - shaderSize);
+      this.nodes[j++] = (cy - shaderSize);
+      this.nodes[j++] = node.color[0];
+      this.nodes[j++] = node.color[1];
+      this.nodes[j++] = node.color[2];
+      this.nodes[j++] = node.color[3];
+      this.nodes[j++] = cx;
+      this.nodes[j++] = cy;
+      this.nodes[j++] = r;
+
+      this.nodes[j++] = (cx + (1 + Math.sqrt(2)) * shaderSize);
+      this.nodes[j++] = cy - shaderSize;
+      this.nodes[j++] = node.color[0];
+      this.nodes[j++] = node.color[1];
+      this.nodes[j++] = node.color[2];
+      this.nodes[j++] = node.color[3];
+      this.nodes[j++] = cx;
+      this.nodes[j++] = cy;
+      this.nodes[j++] = r;
+
+      this.nodes[j++] = (cx - shaderSize);
+      this.nodes[j++] = (cy + (1 + Math.sqrt(2)) * shaderSize);
+      this.nodes[j++] = node.color[0];
+      this.nodes[j++] = node.color[1];
+      this.nodes[j++] = node.color[2];
+      this.nodes[j++] = node.color[3];
+      this.nodes[j++] = cx;
+      this.nodes[j++] = cy;
+      this.nodes[j++] = r;
+    }
+  },
+
+  updateLinksBuffer: function () {
+    var j = 0;
+    this.links = [];
+    for (var i = 0; i < this.linkObjects.length; i++) {
+      var link = this.linkObjects[i];
+      var x1 = this.transformX(link.x1) * this.resolution;
+      var y1 = this.transformY(link.y1) * this.resolution;
+      var x2 = this.transformX(link.x2) * this.resolution;
+      var y2 = this.transformY(link.y2) * this.resolution;
+
+      this.links[j++] = x1;
+      this.links[j++] = y1;
+      this.links[j++] = link.color[0];
+      this.links[j++] = link.color[1];
+      this.links[j++] = link.color[2];
+      this.links[j++] = link.color[3];
+
+      this.links[j++] = x2;
+      this.links[j++] = y2;
+      this.links[j++] = link.color[0];
+      this.links[j++] = link.color[1];
+      this.links[j++] = link.color[2];
+      this.links[j++] = link.color[3];
+    }
+  },
+
+  resize: function (width, height) {
+    this._super(width, height);
+    this.gl.viewport(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);
+  },
+
+  render: function () {
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+
+    this.resize();
+    this.updateNodesBuffer();
+    this.updateLinksBuffer();
+    this.renderLinks(); // links have to be rendered first because of blending;
+    this.renderNodes();
+  },
+
+  renderLinks: function () {
+    var program = this.linksProgram;
+    this.gl.useProgram(program);
+
+    var linksBuffer = new Float32Array(this.links);
+    var buffer = this.gl.createBuffer();
+
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, linksBuffer, this.gl.STATIC_DRAW);
+
+    var resolutionLocation = this.gl.getUniformLocation(program, 'u_resolution');
+    this.gl.uniform2f(resolutionLocation, this.canvas.width, this.canvas.height);
+
+    var positionLocation = this.gl.getAttribLocation(program, 'a_position');
+    var rgbaLocation = this.gl.getAttribLocation(program, 'a_rgba');
+
+    this.gl.enableVertexAttribArray(positionLocation);
+    this.gl.enableVertexAttribArray(rgbaLocation);
+
+    this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, this.LINK_ATTRIBUTES  * Float32Array.BYTES_PER_ELEMENT, 0);
+    this.gl.vertexAttribPointer(rgbaLocation, 4, this.gl.FLOAT, false, this.LINK_ATTRIBUTES  * Float32Array.BYTES_PER_ELEMENT, 8);
+
+    var avgScale = (this.scale[0] + this.scale[1]) / 2;
+    var lineWidthRange = this.gl.getParameter(this.gl.ALIASED_LINE_WIDTH_RANGE); // ex [1,10]
+    var lineWidth = this.lineWidth * Math.abs(avgScale * this.resolution);
+    var lineWidthInRange = Math.min(Math.max(lineWidth, lineWidthRange[0]), lineWidthRange[1]);
+
+    this.gl.lineWidth(lineWidthInRange);
+    this.gl.drawArrays(this.gl.LINES, 0, this.links.length/this.LINK_ATTRIBUTES);
+  },
+
+  renderNodes: function () {
+    var program = this.nodesProgram;
+    this.gl.useProgram(program);
+
+    var nodesBuffer = new Float32Array(this.nodes);
+    var buffer = this.gl.createBuffer();
+
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, nodesBuffer, this.gl.STATIC_DRAW);
+
+    var resolutionLocation = this.gl.getUniformLocation(program, 'u_resolution');
+    this.gl.uniform2f(resolutionLocation, this.canvas.width, this.canvas.height);
+
+    var positionLocation = this.gl.getAttribLocation(program, 'a_position');
+    var rgbaLocation = this.gl.getAttribLocation(program, 'a_rgba');
+    var centerLocation = this.gl.getAttribLocation(program, 'a_center');
+    var radiusLocation = this.gl.getAttribLocation(program, 'a_radius');
+    
+    this.gl.enableVertexAttribArray(positionLocation);
+    this.gl.enableVertexAttribArray(rgbaLocation);
+    this.gl.enableVertexAttribArray(centerLocation);
+    this.gl.enableVertexAttribArray(radiusLocation);
+
+    this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, this.NODE_ATTRIBUTES  * Float32Array.BYTES_PER_ELEMENT, 0);
+    this.gl.vertexAttribPointer(rgbaLocation, 4, this.gl.FLOAT, false, this.NODE_ATTRIBUTES  * Float32Array.BYTES_PER_ELEMENT, 8);
+    this.gl.vertexAttribPointer(centerLocation, 2, this.gl.FLOAT, false, this.NODE_ATTRIBUTES  * Float32Array.BYTES_PER_ELEMENT, 24);
+    this.gl.vertexAttribPointer(radiusLocation, 1, this.gl.FLOAT, false, this.NODE_ATTRIBUTES  * Float32Array.BYTES_PER_ELEMENT, 32);
+
+    this.gl.drawArrays(this.gl.TRIANGLES, 0, this.nodes.length/this.NODE_ATTRIBUTES);
+  }
+});
+
+module.exports = WebGLRenderer;
+
+},{"../renderer.js":15,"./shaders/link.frag.js":11,"./shaders/link.vert.js":12,"./shaders/node.frag.js":13,"./shaders/node.vert.js":14}],11:[function(require,module,exports){
+/*jshint multistr: true */
+module.exports = ' \
+  precision mediump float; \
+  varying vec4 rgba; \
+  void main() { \
+    gl_FragColor = rgba; \
+  }';
+
+},{}],12:[function(require,module,exports){
+/*jshint multistr: true */
+module.exports = ' \
+  uniform vec2 u_resolution; \
+  attribute vec2 a_position; \
+  attribute vec4 a_rgba; \
+  varying vec4 rgba; \
+  void main() { \
+    vec2 clipspace = a_position / u_resolution * 2.0 - 1.0; \
+    gl_Position = vec4(clipspace * vec2(1, -1), 0, 1); \
+    rgba = a_rgba / 255.0; \
+  }';
+},{}],13:[function(require,module,exports){
+/*jshint multistr: true */
+module.exports = ' \
+  precision mediump float; \
+  varying vec4 rgba; \
+  varying vec2 center; \
+  varying vec2 resolution; \
+  varying float radius; \
+  void main() { \
+    vec4 color0 = vec4(0.0, 0.0, 0.0, 0.0); \
+    float x = gl_FragCoord.x; \
+    float y = resolution[1] - gl_FragCoord.y; \
+    float dx = center[0] - x; \
+    float dy = center[1] - y; \
+    float distance = sqrt(dx * dx + dy * dy); \
+    float diff = distance - radius; \
+    if ( diff < 0.0 ) \
+      gl_FragColor = rgba; \
+    else if ( diff >= 0.0 && diff <= 1.0 ) \
+      gl_FragColor = vec4(rgba.r, rgba.g, rgba.b, rgba.a - diff); \
+    else  \
+      gl_FragColor = color0; \
+  }';
+},{}],14:[function(require,module,exports){
+/*jshint multistr: true */
+module.exports = ' \
+  uniform vec2 u_resolution; \
+  attribute vec2 a_position; \
+  attribute vec4 a_rgba; \
+  attribute vec2 a_center; \
+  attribute float a_radius; \
+  varying vec4 rgba; \
+  varying vec2 center; \
+  varying vec2 resolution; \
+  varying float radius; \
+  void main() { \
+    vec2 clipspace = a_position / u_resolution * 2.0 - 1.0; \
+    gl_Position = vec4(clipspace * vec2(1, -1), 0, 1); \
+    rgba = a_rgba / 255.0; \
+    radius = a_radius; \
+    center = a_center; \
+    resolution = u_resolution; \
+  }';
+},{}],15:[function(require,module,exports){
 ;(function () {
-  var center = function (g) {
 
-  /**
-    * grapher.center
-    * ------------------
-    * 
-    * Center the whole network or provided nodeIds in the view.
-    */
-    g.prototype.center = function (nodeIds) {
-      var x = 0,
-          y = 0,
-          scale = 1,
-          allNodes = this.data() ? this.data().nodes : null,
-          nodes = [];
-      if (nodeIds) for (i = 0; i < nodeIds.length; i++) { nodes.push(allNodes[nodeIds[i]]); }
-      else nodes = allNodes;
-
-      var numNodes = nodes ? nodes.length : 0;
-
-      if (numNodes) { // get initial transform
-        var minX = Infinity, maxX = -Infinity,
-            minY = Infinity, maxY = -Infinity,
-            width = this.width(),
-            height = this.height(),
-            pad = 1.1,
-            i;
-
-        for (i = 0; i < numNodes; i++) {
-          if (nodes[i].x < minX) minX = nodes[i].x;
-          if (nodes[i].x > maxX) maxX = nodes[i].x;
-          if (nodes[i].y < minY) minY = nodes[i].y;
-          if (nodes[i].y > maxY) maxY = nodes[i].y;
-        }
-        
-        var dX = maxX - minX,
-            dY = maxY - minY;
-
-        scale = Math.min(width / dX, height / dY, 2) / pad;
-        x = (width - dX * scale) / 2 - minX * scale;
-        y = (height - dY * scale) / 2 - minY * scale;
-      }
-
-      return this.scale(scale).translate([x, y]);
-    };
-
-  /**
-    * grapher.centerToPoint
-    * ------------------
-    * 
-    * Center the network to the point with x and y coordinates
-    */
-    g.prototype.centerToPoint = function (point) {
-      var width = this.width(),
-          height = this.height(),
-          x = this.translate()[0] + width / 2 - point.x,
-          y = this.translate()[1] + height / 2 - point.y;
-
-      return this.translate([x, y]);
-    };
-
-  /**
-    * Extend data to call this.center,
-    * scale and translate to track when the user modifies the transform.
-    */
-    var render = g.prototype.render,
-        scale = g.prototype.scale,
-        translate = g.prototype.translate;
-
-    g.prototype._hasModifiedTransform = false;
-    g.prototype.render = function () {
-      if (!this._hasModifiedTransform) this.center();
-      return render.apply(this, arguments);
-    };
-    g.prototype.scale = function () {
-      var res = scale.apply(this, arguments);
-      if (res === this) this._hasModifiedTransform = true;
-      return res;
-    };
-    g.prototype.translate = function () {
-      var res = translate.apply(this, arguments);
-      if (res === this) this._hasModifiedTransform = true;
-      return res;
-    };
+  var Renderer = function () {
+    if ( !initializing && this.init )
+      this.init.apply(this, arguments);
+    return this;
   };
 
-  if (typeof module !== 'undefined' && module.exports) module.exports = center;
-  else center(Grapher);
+  Renderer.prototype = {
+    init: function (o) {
+      this.canvas = o.canvas;
+      this.lineWidth = o.lineWidth || 2;
+      this.resolution = o.resolution || 1;
+      this.setScale(o.scale);
+      this.setTranslate(o.translate);
+
+      this.resize();
+    },
+    setNodes: function (nodes) { this.nodeObjects = nodes; },
+    setLinks: function (links) { this.linkObjects = links; },
+    setScale: function (scale) {
+      if (!Array.isArray(scale)) scale = [scale, scale];
+      this.scale = scale;
+    },
+    setTranslate: function (translate) { this.translate = translate; },
+    transformX: function (x) { return x * this.scale[0] + this.translate[0]; },
+    transformY: function (y) { return y * this.scale[1] + this.translate[1]; },
+    untransformX: function (x) { return (x - this.translate[0]) / this.scale[0]; },
+    untransformY: function (y) { return (y - this.translate[1]) / this.scale[1]; },
+    resize: function (width, height) {
+      var displayWidth  = (width || this.canvas.clientWidth) * this.resolution;
+      var displayHeight = (height || this.canvas.clientHeight) * this.resolution;
+
+      if (this.canvas.width != displayWidth) this.canvas.width  = displayWidth;
+      if (this.canvas.height != displayHeight) this.canvas.height = displayHeight;
+    }
+  };
+
+  var initializing = false;
+
+  Renderer.extend = function (prop) {
+    var _super = this.prototype;
+
+    initializing = true;
+    var prototype = new this();
+    initializing = false;
+
+    prototype._super = this.prototype;
+    for (var name in prop) {
+      prototype[name] = typeof prop[name] == "function" &&
+        typeof _super[name] == "function" && /\b_super\b/.test(prop[name]) ?
+        (function(name, fn){
+          return function() {
+            var tmp = this._super;
+           
+            // Add a new ._super() method that is the same method
+            // but on the super-class
+            this._super = _super[name];
+           
+            // The method only need to be bound temporarily, so we
+            // remove it when we're done executing
+            var ret = fn.apply(this, arguments);
+            this._super = tmp;
+           
+            return ret;
+          };
+        })(name, prop[name]) :
+        prop[name];
+    }
+
+    // The dummy class constructor
+    function Renderer () {
+      // All construction is actually done in the init method
+      if ( !initializing && this.init )
+        this.init.apply(this, arguments);
+    }
+   
+    // Populate our constructed prototype object
+    Renderer.prototype = prototype;
+   
+    // Enforce the constructor to be what we expect
+    Renderer.prototype.constructor = Renderer;
+ 
+    // And make this class extendable
+    Renderer.extend = arguments.callee;
+   
+    return Renderer;
+  };
+
+  if (module && module.exports) module.exports = Renderer;
 })();
 
-}, {}]}, {}, {"1":""})
+},{}]},{},[1]);
