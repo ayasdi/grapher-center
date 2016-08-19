@@ -6,11 +6,13 @@
   "version": "0.0.1",
   "license": "Apache 2.0",
   "scripts": {
-    "grapher.js": "duo build/build.js > build/grapher.js",
+    "build": "npm run grapher.js && npm run center-min.js",
+    "grapher.js": "browserify build/build.js > build/grapher.js",
     "center-min.js": "uglifyjs center.js -o center-min.js"
   },
   "devDependencies": {
-    "duo": "~0.8.10",
+    "ayasdi-grapher": "git://github.com/ayasdi/grapher.git#1.2.0",
+    "browserify": "^13.1.0",
     "uglify-js": "~2.4.16"
   }
 }
